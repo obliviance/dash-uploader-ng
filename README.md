@@ -178,6 +178,19 @@ if __name__ == '__main__':
 ## Changelog
 
 - [Changelog](./docs/CHANGELOG.md)
+
+## Maintainers
+
+- **Awwab Mahdi** — human maintainer. Security reports and issues go to
+  [GitHub](https://github.com/obliviance/dash-uploader-ng/security/advisories/new);
+  see [SECURITY.md](SECURITY.md).
+- **Claude (Anthropic)** — the CVE-2026-38360 fix, the modernization, and the
+  upstream parity test suite in this fork.
+
+`dash-uploader-ng` is an independent fork and is **not** affiliated with or
+endorsed by the original author. Original authorship is retained in
+[LICENSE.txt](LICENSE.txt) and in the package's `authors` metadata.
+
 ## Credits
 - History: This package is based on the React 16 compatible version [dash-resumable-upload](https://github.com/westonkjones/dash-resumable-upload) (0.0.4) by [Weston Jones](https://github.com/westonkjones/) which in turn is based on [dash-resumable-upload](https://github.com/rmarren1/dash-resumable-upload) (0.0.3) by [Ryan Marren](https://github.com/rmarren1) 
 - The package boilerplate is taken from the [dash-component-boilerplate](https://github.com/plotly/dash-component-boilerplate).

@@ -21,10 +21,14 @@ license-files = ["LICENSE.txt"]
 authors = [
     { name = "Niko Föhr", email = "fohrloop@gmail.com" },
 ]
-# TODO(before first upload): put your own name/email here -- this is the
-# contact PyPI shows for the fork, and it should not be upstream's.
+# Maintainers of the fork, as distinct from `authors` above (upstream, kept for
+# MIT attribution). No email is published here deliberately: PyPI renders it
+# publicly and it gets scraped, and this metadata is immutable once a version is
+# uploaded. Security reports are routed through GitHub instead -- see
+# SECURITY.md and [project.urls].Security.
 maintainers = [
-    { name = "dash-uploader-ng maintainers" },
+    { name = "Awwab Mahdi" },
+    { name = "Claude (Anthropic)" },
 ]
 keywords = ["dash", "upload", "plotly", "flow.js", "file-upload"]
 classifiers = [

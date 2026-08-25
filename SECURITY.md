@@ -127,5 +127,14 @@ by tests so they cannot drift silently.
 
 ## Reporting a vulnerability
 
-Open a private security advisory on the GitHub repository, or an issue if the
-report is not itself sensitive.
+Report through **GitHub**, which is the channel a human actually monitors:
+
+- Preferred, for anything sensitive: open a private security advisory at
+  <https://github.com/obliviance/dash-uploader-ng/security/advisories/new>
+- Otherwise: <https://github.com/obliviance/dash-uploader-ng/issues>
+
+Please don't route security reports to the package metadata. `Claude
+(Anthropic)` is credited as a maintainer for the work on this fork, but it is
+an AI assistant and cannot receive or triage reports; **Awwab Mahdi** is the
+human maintainer. Nothing sensitive should be sent anywhere but the two links
+above.
