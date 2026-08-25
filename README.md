@@ -73,7 +73,7 @@ Full documentation [here](docs/dash-uploader.md)
 
 ```python
 import dash
-import dash_html_components as html
+from dash import html
 import dash_uploader_ng as du
 
 app = dash.Dash(__name__)
@@ -87,7 +87,7 @@ app.layout = html.Div([
 ])
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)
 
 ```
 
@@ -101,7 +101,7 @@ import uuid
 
 import dash_uploader_ng as du
 import dash
-import dash_html_components as html
+from dash import html
 from dash.dependencies import Input, Output, State
 
 app = dash.Dash(__name__)
@@ -156,7 +156,7 @@ def callback_on_completion(status: du.UploadStatus):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)
 
 ```
 

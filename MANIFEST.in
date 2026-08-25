@@ -1,8 +1,11 @@
 include dash_uploader_ng/_build/dash_uploader_ng.min.js
 include dash_uploader_ng/_build/dash_uploader_ng.min.js.map
+include dash_uploader_ng/_build/dash_uploader_ng.min.js.LICENSE.txt
 include dash_uploader_ng/_build/metadata.json
 include dash_uploader_ng/_build/package-info.json
 include README.md
+include SECURITY.md
 include docs/README-PyPi.md
-include LICENSE
+include docs/CHANGELOG.md
+include LICENSE.txt
 include package.json

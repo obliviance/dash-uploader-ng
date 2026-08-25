@@ -1,0 +1,106 @@
+name: Publish to PyPI
+
+# Publishes on a pushed tag like v1.0.0, and on demand via the Actions tab
+# (workflow_dispatch) so you can do a TestPyPI dry run first.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to upload"
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi]
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The JS bundle is generated, not committed, so it has to be built
+      # before the Python distribution -- see RELEASING.md.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install the Python build toolchain
+        # dash is needed at build time: `npm run build:py` shells out to
+        # dash-generate-components to emit the component classes.
+        run: python -m pip install --upgrade build "dash>=2.0" pyyaml
+
+      - name: Build the JS bundle and component classes
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Fail if the JS bundle did not make it into the wheel
+        # Cheap insurance: a wheel without _build/ imports but renders nothing.
+        run: |
+          unzip -l dist/*.whl | grep -q '_build/dash_uploader_ng.min.js' \
+            || { echo "::error::wheel is missing the JS bundle"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade "dash>=2.0" pyyaml pytest flask
+      - run: npm ci && npm run build
+      # The headless suite: path-safety unit tests + the CVE-2026-38360
+      # end-to-end tests. The Selenium suite needs a browser and is skipped.
+      - run: python -m pytest
+
+  publish:
+    name: Publish
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    # The environment name must match what you registered as the trusted
+    # publisher on PyPI.
+    environment:
+      name: ${{ github.event_name == 'push' && 'pypi' || inputs.target }}
+    permissions:
+      # This is what Trusted Publishing uses instead of an API token.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+      - name: Publish to TestPyPI
+        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || inputs.target == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
