@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dash-uploader-ng"
+version = "1.0.0"
+description = "Large file upload component for Dash -- a maintained, security-patched fork of dash-uploader"
+readme = "docs/README-PyPi.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Niko Föhr", email = "fohrloop@gmail.com" },
+]
+maintainers = [
+    { name = "dash-uploader-ng maintainers" },
+]
+keywords = ["dash", "upload", "plotly", "flow.js", "file-upload"]
+classifiers = [
+    "Framework :: Dash",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    # dash>=2.0 is the first line that dropped Python 2 and settled the
+    # component/callback API this package builds on. Verified against dash 4.x.
+    "dash>=2.0",
+    # packaging is used by utils.py for the dash version comparison.
+    "packaging>=21.0",
+]
+
+[project.optional-dependencies]
+# Fast, headless test suite (path-safety unit tests + the CVE-2026-38360
+# end-to-end tests). The Selenium browser suite has its own requirements file
+# at tests/browser/requirements.txt.
+test = [
+    "pytest>=7.0",
+    "flask>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/obliviance/dash-uploader-ng"
+Repository = "https://github.com/obliviance/dash-uploader-ng"
+Issues = "https://github.com/obliviance/dash-uploader-ng/issues"
+Security = "https://github.com/obliviance/dash-uploader-ng/blob/main/SECURITY.md"
+
+[tool.setuptools]
+# The importable package is dash_uploader_ng, including the generated _build
+# subpackage. The JS bundle and dash component metadata under _build/ are data
+# files that must ship in the wheel; they are produced by `npm run build` and
+# are not in version control (see .gitignore), so an sdist/wheel build must run
+# the JS build first.
+packages = ["dash_uploader_ng", "dash_uploader_ng._build"]
+
+[tool.setuptools.package-data]
+dash_uploader_ng = [
+    "_build/*.js",
+    "_build/*.js.map",
+    "_build/*.json",
+]
+
+[tool.pytest.ini_options]
+# Default run is the fast, headless suite: the path-safety unit tests, the
+# CVE-2026-38360 end-to-end tests, and the UploadStatus test. The Selenium
+# browser suite under tests/browser/ needs a real Chrome + chromedriver and is
+# opted into explicitly (`pytest tests/browser`).
+testpaths = ["tests"]
+norecursedirs = ["tests/browser"]
+addopts = "-rsxX -vv"
+log_format = "%(asctime)s | %(levelname)s | %(name)s:%(lineno)d | %(message)s"
+log_cli_level = "ERROR"
