@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.0 (dash-uploader-ng)
+
+First release of `dash-uploader-ng`, a maintained fork of `dash-uploader`
+(archived upstream at `0.7.0-a2`, 2025-07-19).
+
+### Security
+- **Fixed [CVE-2026-38360](../SECURITY.md)** — a critical (CWE-22, CVSS 9.8)
+  path-traversal → RCE in the upload endpoint. The `upload_id`, `flowFilename`
+  and `flowIdentifier` form fields are now validated at the request boundary
+  (`dash_uploader_ng/safepath.py`), and every resolved path is re-checked
+  against the upload root before any write. Malformed requests now return a
+  proper `400`/`404` instead of an accidental `500`.
+
+### Changed
+- **Renamed** the package: distribution `dash-uploader` → `dash-uploader-ng`,
+  import `dash_uploader` → `dash_uploader_ng`. Update your imports; the API is
+  otherwise unchanged.
+- **Modernized packaging**: replaced the `package.json`-driven `setup.py` with
+  a `pyproject.toml` (PEP 621). `requires-python >= 3.10`; supports Python
+  3.10–3.13.
+- **Dependency floor** raised to `dash>=2.0` (verified against dash 4.x).
+- **Refreshed the JS build**: bumped `styled-jsx` to v5 and pruned the
+  unused-at-build-time `react-scripts` and `npm` dev-dependencies. `npm audit`
+  now reports **0 vulnerabilities** (was 87, incl. 5 critical). The shipped
+  runtime bundle (flow.js, lodash, ramda) is unchanged in behaviour.
+- **Split the test suite**: fast headless tests (`tests/`) run without a
+  browser; the Selenium suite moved to `tests/browser/`.
+
 ## 0.7.0-a1 (2022-03-30)
 
 - This pre-release is available in PyPI with `--pre` flag.

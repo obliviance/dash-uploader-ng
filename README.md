@@ -1,24 +1,27 @@
-## 🚨 dash-uploader is archived 2025-07-19. See: [#153](https://github.com/fohrloop/dash-uploader/issues/153)
---------
+# 📤 dash-uploader-ng
 
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/fohrloop/dash-uploader)&nbsp;![PyPI](https://img.shields.io/pypi/v/dash-uploader)&nbsp;![PyPI - Downloads](https://img.shields.io/pypi/dm/dash-uploader)&nbsp;![GitHub](https://img.shields.io/github/license/fohrloop/dash-uploader)
+A maintained, **security-patched** fork of
+[dash-uploader](https://github.com/fohrloop/dash-uploader) — the upload
+component for [Dash](https://dash.plotly.com/) applications that need large
+data files.
 
-![upload large files with dash-uploader](docs/upload-demo.gif)
+Upstream dash-uploader was archived on 2025-07-19 without a fix for
+[CVE-2026-38360](SECURITY.md), a critical (CVSS 9.8) path-traversal → RCE in
+the upload endpoint. This fork **fixes that vulnerability**, modernizes the
+packaging, and refreshes the dependency tree while keeping the same API.
 
-# 📤 dash-uploader
-The alternative upload component for [Dash](https://dash.plotly.com/) applications. 
+> **Migrating from `dash-uploader`:** the import name changed, so update your
+> imports. Nothing else in your app needs to change.
+> ```diff
+> - import dash_uploader as du
+> + import dash_uploader_ng as du
+> ```
 
-
-## 📢 dash-uploader 0.7.0 pre-release available 
-
-🎉 There is pre-release version of dash-uploader 0.7.0 available in PyPI! 🎉 
-
-```
-python -m pip install dash-uploader --pre
-```
-
-- It fixes the multi-file upload issues!  
-- Please, test it and give feedback to this [discussion](https://github.com/fohrloop/dash-uploader/discussions/88). 
+- 🔒 **CVE-2026-38360 fixed** — see [SECURITY.md](SECURITY.md).
+- 🧰 **Modernized** — `pyproject.toml`, Python 3.10–3.13, `dash>=2.0` (verified
+  on dash 4.x), zero known npm vulnerabilities in the build.
+- 🤝 **Drop-in API** — same `configure_upload` / `Upload` / `callback` /
+  `UploadStatus` as upstream.
 
 
 
@@ -39,7 +42,7 @@ python -m pip install dash-uploader --pre
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☎ Call easily a callback after uploading is finished.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📤 Upload files using [flow.js](https://github.com/flowjs/flow.js/) <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📦 All JS and CSS bundled with the package. No need for network calls for CSS/JS.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ✅ Works with Dash 1.1.0.+ & Python 3.6+. (Possibly with other versions, too)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ✅ Works with Dash 2.0+ (verified on Dash 4.x) & Python 3.10+.<br>
 
 
 ### dash-uploader vs. [dcc.Upload](https://dash.plotly.com/dash-core-components/upload)
@@ -58,7 +61,7 @@ python -m pip install dash-uploader --pre
 
 # Installing
 ```
-pip install dash-uploader
+pip install dash-uploader-ng
 ```
 
 # Quickstart
