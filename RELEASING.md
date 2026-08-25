@@ -40,6 +40,30 @@ producing a wheel with no JS in it.
 4. **Register the trusted publisher on PyPI** (below). This is the only
    remaining step, and it needs a PyPI login.
 
+## Verification performed for 1.0.0
+
+Run locally before the first release, so CI is a re-check rather than the first
+real test. Reproduce any row with `uv venv --python 3.X` + `pytest`.
+
+| Python | dash | Headless suite (115) | Wheel install + app renders | Browser suite (7+1 skip) |
+| ------ | ---- | -------------------- | --------------------------- | ------------------------ |
+| 3.10   | 4.4.1 | pass | pass | pass |
+| 3.11   | 4.4.1 | pass | pass | not run |
+| 3.12   | 4.4.1 | pass | pass | not run |
+| 3.13   | 4.4.1 | pass | pass | pass |
+
+Also checked: installing from the **sdist** (pip's fallback when no wheel
+matches) builds and imports on 3.13, and the CVE-2026-38360 fix is live in the
+installed artifact on every version — not just in the source tree.
+
+The browser suite was run on the oldest and newest supported interpreters
+rather than all four: it exercises the JS component and the flow.js round trip,
+which are not Python-version sensitive, and each run costs ~37s plus a browser.
+
+Still unexercised anywhere: the Windows file-locking path
+(`test_uploadtwice02`, skipped by upstream's own `ON_NIX` marker), and any
+Chrome other than the Chromium 151 used here.
+
 ## Release steps
 
 ```bash
