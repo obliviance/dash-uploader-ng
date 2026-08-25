@@ -75,7 +75,7 @@ def test_disabled01_check_disabled_property_update(dash_duo):
     The trigger of "disabled" would make the class of the upload component change.
     """
     # Fetch the test app.
-    app = import_app("tests.apps.disabled")
+    app = import_app("tests.browser.apps.disabled")
     dash_duo.start_server(app)
     wait = WebDriverWait(dash_duo._driver, 10)
 
@@ -137,7 +137,7 @@ def test_disabled02_check_disabled_effect(
     The upload component with "disableDragAndDrop" would not accept files uploaded by drag and drop region.
     """
     # Fetch the test app.
-    app = import_app("tests.apps.disabled")
+    app = import_app("tests.browser.apps.disabled")
     dash_duo.start_server(app)
     driver = dash_duo._driver
     wait = WebDriverWait(driver, 10)

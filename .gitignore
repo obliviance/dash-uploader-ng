@@ -283,3 +283,6 @@ dash_uploader_ng/_build
 
 # Do not track local /tmp 
 tmp/
+# --- dash-uploader-ng: local dev artifacts ---
+.venv/
+node_modules/
