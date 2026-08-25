@@ -30,17 +30,15 @@ producing a wheel with no JS in it.
 1. **Claim the name.** `dash-uploader-ng` was unregistered as of this writing.
    Names are first-come, first-served, and the *first successful upload*
    claims it — so upload to TestPyPI first, then to PyPI promptly.
-2. **Set the maintainer metadata.** `pyproject.toml` still has a placeholder:
-   ```toml
-   maintainers = [{ name = "dash-uploader-ng maintainers" }]
-   ```
-   Replace it with your own name and (optionally) email. Note this becomes
-   **public** on the PyPI page, so use an address you're willing to publish.
-   Leave `authors` as upstream — that's the MIT attribution.
-3. **Push the repo to GitHub** and confirm the URLs in `[project.urls]`
-   resolve. The README badges and the demo GIF are absolute links to
-   `github.com/obliviance/dash-uploader-ng`; until that repo is public, the
-   images on the PyPI page will be broken.
+2. ~~Set the maintainer metadata.~~ **Done** — `Awwab Mahdi` and
+   `Claude (Anthropic)`, with no email published (PyPI renders it publicly and
+   per-version metadata is immutable). `authors` stays as upstream: that's the
+   MIT attribution.
+3. ~~Push the repo to GitHub.~~ **Done** —
+   <https://github.com/obliviance/dash-uploader-ng>, public, so the README
+   badges and demo GIF resolve on the PyPI page.
+4. **Register the trusted publisher on PyPI** (below). This is the only
+   remaining step, and it needs a PyPI login.
 
 ## Release steps
 
