@@ -1,0 +1,61 @@
+{
+  "name": "dash_uploader",
+  "version": "0.7.0-a2",
+  "description": "Upload component for Dash",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fohrloop/dash-uploader.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fohrloop/dash-uploader/issues"
+  },
+  "homepage": "https://github.com/fohrloop/dash-uploader",
+  "main": "build/index.js",
+  "scripts": {
+    "validate-init": "python _validate_init.py",
+    "prepublishOnly": "npm run validate-init",
+    "build:js": "webpack --mode production",
+    "build:py": "dash-generate-components ./src/lib/components dash_uploader -p package-info.json ",
+    "build:py-activated": "(. venv/bin/activate || venv\\scripts\\activate && npm run build:py)",
+    "build": "npm run build:js && npm run build:py && python ./devscripts/post_build.py",
+    "build:activated": "npm run build:js && npm run build:py-activated",
+    "test:react": "react-scripts test"
+  },
+  "author": "Niko Föhr <fohrloop@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@flowjs/flow.js": "^2.14.1",
+    "lodash": ">=4.17.21",
+    "ramda": "^0.27.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.16.0",
+    "@babel/eslint-parser": "^7.16.3",
+    "@babel/plugin-proposal-class-properties": "^7.16.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.16.0",
+    "@babel/preset-env": "^7.16.4",
+    "@babel/preset-react": "^7.16.0",
+    "@testing-library/react": "^12.1.2",
+    "babel-loader": "^8.2.3",
+    "copyfiles": "^2.4.1",
+    "css-loader": "^6.5.1",
+    "eslint": "^8.4.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-react": "^7.27.1",
+    "npm": "^8.3.0",
+    "prop-types": "^15.7.2",
+    "react": "^17.0.2",
+    "react-docgen": "^5.4.0",
+    "react-dom": "^17.0.2",
+    "react-scripts": "^5.0.0",
+    "style-loader": "^3.3.1",
+    "styled-jsx": "^4.0.1",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1"
+  },
+  "engines": {
+    "node": ">=16.13.0",
+    "npm": ">=8.1.4"
+  }
+}

@@ -1,0 +1,65 @@
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
+
+/**
+ *  A Button component. 
+ *  Used as a part of Upload component.
+ */
+class Button extends Component {
+
+    constructor(props) {
+        super(props)
+    }
+
+    render() {
+
+        return (
+            <button
+                style={{
+                    cursor: this.props.isUploading ? 'pointer' : 'default',
+                }}
+                disabled={this.props.disabled}
+                className={this.props.btnClass + " btn btn-sm btn-dash-uploader"}
+                onClick={this.props.onClick}>
+                {this.props.text}
+            </button>
+        )
+    }
+}
+
+
+Button.propTypes = {
+    /**
+     *  The text on the button 
+     */
+    text: PropTypes.string,
+    /**
+     *  The CSS class for the button
+     */
+    btnClass: PropTypes.string,
+    /**
+     *  Function to call when clicked
+     */
+    onClick: PropTypes.func,
+    /**
+     *  Is disabled, the component
+     * is not shown.
+     */
+    disabled: PropTypes.bool,
+    /**
+     *  Is true, the parent component
+     *  has upload in progress.
+     */
+    isUploading: PropTypes.bool,
+}
+
+Button.defaultProps = {
+    text: '',
+    btnClass: 'dash-uploader-btn',
+    onClick: () => { },
+    disabled: false,
+    isUploading: false,
+
+};
+
+export default Button
