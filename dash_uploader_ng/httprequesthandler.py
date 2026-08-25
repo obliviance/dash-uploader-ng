@@ -8,7 +8,7 @@ import traceback
 from flask import request
 from flask import abort
 
-from dash_uploader.utils import retry
+from dash_uploader_ng.utils import retry
 
 logger = logging.getLogger(__name__)
 

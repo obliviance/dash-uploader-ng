@@ -3,9 +3,9 @@ from pathlib import Path
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, State
 
-import dash_uploader.settings as settings
-from dash_uploader.uploadstatus import UploadStatus
-from dash_uploader.utils import dash_version_is_at_least
+import dash_uploader_ng.settings as settings
+from dash_uploader_ng.uploadstatus import UploadStatus
+from dash_uploader_ng.utils import dash_version_is_at_least
 
 
 def _create_dash_callback(callback, settings):  # pylint: disable=redefined-outer-name

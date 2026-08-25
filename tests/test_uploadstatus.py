@@ -1,4 +1,4 @@
-import dash_uploader as du
+import dash_uploader_ng as du
 from pathlib import Path
 
 

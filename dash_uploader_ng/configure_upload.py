@@ -1,11 +1,11 @@
 import logging
 
-import dash_uploader.settings as settings
-from dash_uploader.upload import update_upload_api
-from dash_uploader.httprequesthandler import HttpRequestHandler
+import dash_uploader_ng.settings as settings
+from dash_uploader_ng.upload import update_upload_api
+from dash_uploader_ng.httprequesthandler import HttpRequestHandler
 
 
-logger = logging.getLogger("dash_uploader")
+logger = logging.getLogger("dash_uploader_ng")
 
 
 def configure_upload(
@@ -40,9 +40,9 @@ def configure_upload(
     http_request_handler: None or class
         Used for custom configuration on the Http POST and GET requests.
         This can be used to add validation for the HTTP requests (Important
-        if your site is public!). If None, dash_uploader.HttpRequestHandler is used.
+        if your site is public!). If None, dash_uploader_ng.HttpRequestHandler is used.
         If you provide a class, use a subclass of HttpRequestHandler.
-        See the documentation of dash_uploader.HttpRequestHandler for
+        See the documentation of dash_uploader_ng.HttpRequestHandler for
         more details.
     """
     settings.UPLOAD_FOLDER_ROOT = folder

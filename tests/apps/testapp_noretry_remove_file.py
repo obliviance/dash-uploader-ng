@@ -3,7 +3,7 @@ import uuid
 
 import dash
 
-import dash_uploader as du
+import dash_uploader_ng as du
 
 if du.utils.dash_version_is_at_least("2.0.0"):
     from dash import html  # if dash <= 2.0.0, use: import dash_html_components as html
@@ -12,7 +12,7 @@ else:
 
 from dash.dependencies import Output
 
-from dash_uploader.httprequesthandler import HttpRequestHandler, remove_file
+from dash_uploader_ng.httprequesthandler import HttpRequestHandler, remove_file
 
 UPLOAD_FOLDER_ROOT = (
     r"C:\tmp\Uploads" if sys.platform == "win32" else "/tmp/dash-uploader-uploads"

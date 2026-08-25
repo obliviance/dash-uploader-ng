@@ -1,7 +1,7 @@
 import uuid
 
-from dash_uploader._build.Upload_ReactComponent import Upload_ReactComponent
-import dash_uploader.settings as settings
+from dash_uploader_ng._build.Upload_ReactComponent import Upload_ReactComponent
+import dash_uploader_ng.settings as settings
 
 DEFAULT_STYLE = {
     "width": "100%",

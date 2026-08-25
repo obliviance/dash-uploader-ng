@@ -1,21 +1,21 @@
 {
-  "name": "dash_uploader",
-  "version": "0.7.0-a2",
-  "description": "Upload component for Dash",
+  "name": "dash_uploader_ng",
+  "version": "1.0.0",
+  "description": "Large file upload component for Dash -- maintained fork of dash-uploader",
   "repository": {
     "type": "git",
-    "url": "git://github.com/fohrloop/dash-uploader.git"
+    "url": "git+https://github.com/obliviance/dash-uploader-ng.git"
   },
   "bugs": {
-    "url": "https://github.com/fohrloop/dash-uploader/issues"
+    "url": "https://github.com/obliviance/dash-uploader-ng/issues"
   },
-  "homepage": "https://github.com/fohrloop/dash-uploader",
+  "homepage": "https://github.com/obliviance/dash-uploader-ng",
   "main": "build/index.js",
   "scripts": {
     "validate-init": "python _validate_init.py",
     "prepublishOnly": "npm run validate-init",
     "build:js": "webpack --mode production",
-    "build:py": "dash-generate-components ./src/lib/components dash_uploader -p package-info.json ",
+    "build:py": "dash-generate-components ./src/lib/components dash_uploader_ng -p package-info.json ",
     "build:py-activated": "(. venv/bin/activate || venv\\scripts\\activate && npm run build:py)",
     "build": "npm run build:js && npm run build:py && python ./devscripts/post_build.py",
     "build:activated": "npm run build:js && npm run build:py-activated",

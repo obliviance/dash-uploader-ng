@@ -8,7 +8,7 @@ import uuid
 
 import dash
 
-import dash_uploader as du
+import dash_uploader_ng as du
 
 if du.utils.dash_version_is_at_least("2.0.0"):
     from dash import dcc, html
