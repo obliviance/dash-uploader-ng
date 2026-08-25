@@ -4,7 +4,11 @@ import threading
 import time
 from pathlib import Path
 
-import chromedriver_binary
+try:
+    import chromedriver_binary
+except ImportError:
+    # Optional: driver may come from Selenium Manager or $CHROMEDRIVER instead.
+    pass
 import pytest
 from dash.testing.application_runners import import_app
 from selenium.webdriver.common.by import By

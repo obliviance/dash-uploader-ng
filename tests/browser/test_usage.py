@@ -2,7 +2,11 @@
 from pathlib import Path
 import shutil
 
-import chromedriver_binary
+try:
+    import chromedriver_binary
+except ImportError:
+    # Optional: driver may come from Selenium Manager or $CHROMEDRIVER instead.
+    pass
 from dash.testing.application_runners import import_app
 import pytest
 from selenium.webdriver.common.by import By
