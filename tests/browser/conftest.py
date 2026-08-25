@@ -17,7 +17,7 @@ def pytest_collection_modifyitems(items):
     N_items = len(items)
     # The test_chromedriver.py has tests that test
     # it the tests can be run; run it first.
-    FIRST_MODULES = ["tests.test_chromedriver", "tests.test_usage"]
+    FIRST_MODULES = ["tests.browser.test_chromedriver", "tests.browser.test_usage"]
 
     items_mapping = defaultdict(list)
     for item in items:

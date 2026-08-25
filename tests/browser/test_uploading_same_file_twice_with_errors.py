@@ -55,7 +55,7 @@ def test_uploadtwice01_upload_a_file_twice_and_reserve_it(
     # (4) Release the file
     # (5) The second upload of the same file should be okay
 
-    app = import_app("tests.apps.testapp")
+    app = import_app("tests.browser.apps.testapp")
     dash_duo.start_server(app)
 
     def upload_file(file_to_upload):
@@ -160,7 +160,7 @@ def test_uploadtwice02_upload_a_file_twice_with_error(
     # This app does not have retries on the "remove_file"
     # function, and therefore the error alert will appear
     # to the user instantly. (to make tests faster)
-    app = import_app("tests.apps.testapp_noretry_remove_file")
+    app = import_app("tests.browser.apps.testapp_noretry_remove_file")
     dash_duo.start_server(app)
 
     def upload_file(file_to_upload):
