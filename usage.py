@@ -4,11 +4,9 @@ import sys
 import dash_uploader_ng as du
 import dash
 
-if du.utils.dash_version_is_at_least("2.0.0"):
-    from dash import html  # if dash <= 2.0.0, use: import dash_html_components as html
-else:
-    import dash_html_components as html
-
+# dash>=2.0 is the floor for this package, so `from dash import html` always
+# works; the old standalone dash_html_components package no longer exists.
+from dash import html
 from dash.dependencies import Output
 
 app = dash.Dash(__name__)
@@ -71,4 +69,4 @@ def callback_on_completion(status: du.UploadStatus):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)

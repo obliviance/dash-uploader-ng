@@ -1,7 +1,7 @@
 
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/fohrloop/dash-uploader)&nbsp;![PyPI](https://img.shields.io/pypi/v/dash-uploader)&nbsp;![PyPI - Downloads](https://img.shields.io/pypi/dm/dash-uploader)&nbsp;![GitHub](https://img.shields.io/github/license/fohrloop/dash-uploader)
+![PyPI](https://img.shields.io/pypi/v/dash-uploader-ng)&nbsp;![PyPI - Downloads](https://img.shields.io/pypi/dm/dash-uploader-ng)&nbsp;![Python versions](https://img.shields.io/pypi/pyversions/dash-uploader-ng)&nbsp;![License](https://img.shields.io/pypi/l/dash-uploader-ng)
 
-![upload large files with dash-uploader](https://github.com/fohrloop/dash-uploader/blob/0.2.0/docs/upload-demo.gif?raw=true)
+![upload large files with dash-uploader-ng](https://raw.githubusercontent.com/obliviance/dash-uploader-ng/main/docs/upload-demo.gif)
 
 # 📤 dash-uploader-ng
 The upload package for [Dash](https://dash.plotly.com/) applications using large data files. A maintained, security-patched fork of [dash-uploader](https://github.com/fohrloop/dash-uploader).
@@ -32,7 +32,7 @@ pip install dash-uploader-ng
 
 ```python
 import dash
-import dash_html_components as html
+from dash import html
 import dash_uploader_ng as du
 
 app = dash.Dash(__name__)
@@ -46,7 +46,7 @@ app.layout = html.Div([
 ])
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)
 
 ```
 

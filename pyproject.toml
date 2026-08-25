@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+# setuptools>=77 is required for the PEP 639 SPDX `license` / `license-files`
+# fields used below. This only constrains the *build* environment, not the
+# runtime -- installing the built wheel still works on Python 3.10+.
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,10 +11,18 @@ version = "1.0.0"
 description = "Large file upload component for Dash -- a maintained, security-patched fork of dash-uploader"
 readme = "docs/README-PyPi.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+# PEP 639: SPDX expression + explicit license files. Replaces the deprecated
+# `license = {text = ...}` table and the "License :: OSI Approved" classifier.
+license = "MIT"
+license-files = ["LICENSE.txt"]
+# Upstream authorship is retained: this is a fork of Niko Föhr's dash-uploader,
+# and the MIT licence's attribution requirement is met by keeping both the
+# original copyright in LICENSE.txt and the original author here.
 authors = [
     { name = "Niko Föhr", email = "fohrloop@gmail.com" },
 ]
+# TODO(before first upload): put your own name/email here -- this is the
+# contact PyPI shows for the fork, and it should not be upstream's.
 maintainers = [
     { name = "dash-uploader-ng maintainers" },
 ]
@@ -20,7 +31,6 @@ classifiers = [
     "Framework :: Dash",
     "Framework :: Flask",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -65,6 +75,9 @@ dash_uploader_ng = [
     "_build/*.js",
     "_build/*.js.map",
     "_build/*.json",
+    # webpack emits this alongside the bundle to carry the bundled libraries'
+    # licence banners; it is referenced by a comment in the .min.js.
+    "_build/*.LICENSE.txt",
 ]
 
 [tool.pytest.ini_options]
