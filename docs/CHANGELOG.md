@@ -9,7 +9,7 @@
 - Calling callback each time file is uploaded in multi-file upload case (Fixes: [#5](https://github.com/fohrloop/dash-uploader/issues/5), [#20](https://github.com/fohrloop/dash-uploader/issues/20) & [#44](https://github.com/fohrloop/dash-uploader/issues/44))
 - Progress bar problems when uploading multiple files (Fixes: [#84](https://github.com/fohrloop/dash-uploader/issues/84))
 - Instead of returing `None`, raise `dash.exceptions.PreventUpdate`. This should reduce errors seen in the browser console. [PR 54](https://github.com/fohrloop/dash-uploader/pull/54)
-- Fixed  `ImportError` which was raised when trying to import `dash_uploader` when `packaging` was not installed. [PR 54](https://github.com/fohrloop/dash-uploader/pull/54)
+- Fixed  `ImportError` which was raised when trying to import `dash_uploader_ng` when `packaging` was not installed. [PR 54](https://github.com/fohrloop/dash-uploader/pull/54)
 ### Changed 
 - resumable.js -> flowjs (Closes: [#21](https://github.com/fohrloop/dash-uploader/issues/21))
 - ⚠️ **Backwards incompatible**: Callback syntax (@du.callback) was changed to use `status` instead of `filenames` as the callback function argument. Support for `@app.callback` syntax dropped. See the [0.6.0 -> 0.7.0 Migration Guide](https://github.com/fohrloop/dash-uploader/wiki/Migration-Guide#060--070) for details.

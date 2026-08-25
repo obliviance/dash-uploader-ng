@@ -9,7 +9,7 @@ import sys
 import importlib
 
 
-components_package = "dash_uploader"
+components_package = "dash_uploader_ng"
 
 components_lib = importlib.import_module(components_package)
 

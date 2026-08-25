@@ -37,7 +37,7 @@ python -m pip install -e <path_to_this_folder>[dev]
 
 ### 3.1 Highlights of package structure
 ```
-dash_uploader/
+dash_uploader_ng/
   * python source code of this package
     __init__.py
   _build/
@@ -45,8 +45,8 @@ dash_uploader/
     * Do not edit these by hand!
       _imports_.py
       <Component>.py <-- for each component
-      dash_uploader.min.js
-      dash_uploader.min.js.map
+      dash_uploader_ng.min.js
+      dash_uploader_ng.min.js.map
       metadata.json
       package-info.json
     
@@ -73,7 +73,7 @@ index.html
   * Needed for testing (with npm run)
 inst/
   * Some kind of intermediate storage for JS files 
-    (before copying to dash_uploader)
+    (before copying to dash_uploader_ng)
   * Automatically generated with "npm run build"
 node_modules/
   * JS dependencies
@@ -86,7 +86,7 @@ venv/
 
 ### 4.1 Developing the Python code
 
-- Edit the non-auto-generated files in `dash_uploader` 
+- Edit the non-auto-generated files in `dash_uploader_ng` 
 - The used code formatter is [black](https://github.com/psf/black).
 ### 4.2 Developing the React/JS code
 - Edit the react.js files in `src/lib/components/`<br>
@@ -99,7 +99,7 @@ Run in the project root
 ```
 npm run build
 ```
-This will create all the auto-generated (JS, json, python) files into the `dash_uploader/_build` folder.
+This will create all the auto-generated (JS, json, python) files into the `dash_uploader_ng/_build` folder.
 #### 4.2.2 Building: Updating the JS
 
 Javascript libraries tend to get security fixes quite often. To fix the security issues, use 
@@ -159,13 +159,13 @@ python -m pytest
 
 *only applicable to people with access to the PyPI package*
 - Update version in `package.json`
-- Create new `dash_uploader-x.x.x.tar.gz` with 
+- Create new `dash_uploader_ng-x.x.x.tar.gz` with 
 ```
 python .\setup.py sdist
 ```
 - Upload to pip with
 ```
-twine upload .\dist\dash_uploader-x.x.x.tar.gz
+twine upload .\dist\dash_uploader_ng-x.x.x.tar.gz
 ```
 ## 7.  How does dash-uploader work internally?
 

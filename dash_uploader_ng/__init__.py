@@ -4,11 +4,11 @@ import json
 
 import dash as _dash
 
-from dash_uploader.configure_upload import configure_upload
-from dash_uploader.callbacks import callback
-from dash_uploader.httprequesthandler import HttpRequestHandler
-from dash_uploader.upload import Upload
-from dash_uploader.uploadstatus import UploadStatus
+from dash_uploader_ng.configure_upload import configure_upload
+from dash_uploader_ng.callbacks import callback
+from dash_uploader_ng.httprequesthandler import HttpRequestHandler
+from dash_uploader_ng.upload import Upload
+from dash_uploader_ng.uploadstatus import UploadStatus
 
 # noinspection PyUnresolvedReferences
 from ._build._imports_ import *  # noqa: F403,F401
@@ -44,9 +44,9 @@ _current_path = _os.path.dirname(_os.path.abspath(__file__))
 
 _this_module = _sys.modules[__name__]
 _js_dist = [
-    {"relative_package_path": "_build/dash_uploader.min.js", "namespace": package_name},
+    {"relative_package_path": "_build/dash_uploader_ng.min.js", "namespace": package_name},
     {
-        "relative_package_path": "_build/dash_uploader.min.js.map",
+        "relative_package_path": "_build/dash_uploader_ng.min.js.map",
         "namespace": package_name,
         "dynamic": True,
     },

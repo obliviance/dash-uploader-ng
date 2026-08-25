@@ -32,7 +32,7 @@ pip install dash-uploader
 ```python
 import dash
 import dash_html_components as html
-import dash_uploader as du
+import dash_uploader_ng as du
 
 app = dash.Dash(__name__)
 

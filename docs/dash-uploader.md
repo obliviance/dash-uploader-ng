@@ -35,7 +35,7 @@ You need to configure the dash uploader after you created your dash application 
 
 **Example**
 ```python
-import dash_uploader as du
+import dash_uploader_ng as du
 
 du.configure_upload(app, r'C:\tmp\uploads')
 ```
@@ -84,7 +84,7 @@ for the communication between the front-end and the server. The `requests_pathna
 *New in version **0.5.0***
 
 Used for custom configuration on the HTTP POST and GET requests. This can be used to add validation for the HTTP requests (⚠️Important
-if your site is public!). If None, dash_uploader.HttpRequestHandler is used.
+if your site is public!). If None, dash_uploader_ng.HttpRequestHandler is used.
 If you provide a class, use a subclass of `du.HttpRequestHandler`.
 See the documentation of [`@du.HttpRequestHandler`](#duhttprequesthandler) for
 more details.

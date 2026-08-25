@@ -1,7 +1,7 @@
 import uuid
 import sys
 
-import dash_uploader as du
+import dash_uploader_ng as du
 import dash
 
 if du.utils.dash_version_is_at_least("2.0.0"):

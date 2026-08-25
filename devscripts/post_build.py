@@ -7,7 +7,7 @@ components = root / "src" / "lib" / "components"
 
 component_names = [x.name[:-9] for x in components.glob("*.react.js")]
 
-folder_from = root / "dash_uploader"
+folder_from = root / "dash_uploader_ng"
 folder_to = folder_from / "_build"
 
 filenames = ["metadata.json", "package-info.json", "_imports_.py"] + [
