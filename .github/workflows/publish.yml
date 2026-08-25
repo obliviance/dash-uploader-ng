@@ -74,13 +74,37 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade "dash>=2.0" pyyaml pytest flask
       - run: npm ci && npm run build
-      # The headless suite: path-safety unit tests + the CVE-2026-38360
-      # end-to-end tests. The Selenium suite needs a browser and is skipped.
+      # The headless suite: path-safety unit tests, the CVE-2026-38360
+      # end-to-end tests, and the upstream differential/parity tests.
       - run: python -m pytest
+
+  browser-test:
+    name: Upstream browser suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      # dash's `testing` extra pins selenium<=4.2, which predates Selenium
+      # Manager -- so point the suite at the runner's preinstalled Chrome and
+      # chromedriver explicitly via the conftest's env overrides.
+      - run: python -m pip install --upgrade "dash[testing]==4.4.1" pyyaml
+      - run: npm ci && npm run build
+      - name: Run upstream's Selenium suite against the fork
+        env:
+          CHROME_BINARY: /usr/bin/google-chrome
+        run: |
+          export CHROMEDRIVER="$(command -v chromedriver || true)"
+          python -m pytest tests/browser -W ignore::DeprecationWarning
 
   publish:
     name: Publish
-    needs: [build, test]
+    needs: [build, test, browser-test]
     runs-on: ubuntu-latest
     # The environment name must match what you registered as the trusted
     # publisher on PyPI.
