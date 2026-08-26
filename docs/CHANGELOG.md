@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.2.0 (dash-uploader-ng)
+
+Bug fixes and performance only — no new features. Backwards compatible.
+
+### Performance
+- **Large uploads are dramatically faster** (`up#102`, and `up#30` by
+  extension). Upload completeness was tested by `stat()`ing *every* chunk on
+  *every* request — O(N²) syscalls, roughly 131 million `stat()` calls for the
+  11.2 GB file in the upstream report. It now costs a single `stat()` for all
+  but the final chunk. Measured against the original implementation: **6.8×
+  faster at 4000 chunks**, and the gap widens with file size because the old
+  behaviour was quadratic and the new one is linear.
+- **Reassembly streams instead of buffering.** Each chunk was read whole into
+  memory; peak usage now stays flat regardless of `chunk_size`.
+
+### Fixed
+- **Filename length limits are measured in bytes, not characters** (`up#142`).
+  Filesystems cap a path component at 255 bytes, so the old character-based
+  limit was wrong in both directions: it rejected legal 201–243 character ASCII
+  filenames, and accepted an 80-character CJK filename (244 bytes) that then
+  failed at write time with an opaque server error. The limit also now reserves
+  room for the `_part_<n>` suffix each chunk file appends, which a
+  maximum-length filename previously overflowed.
+- **`upload_id` is no longer frozen to the first render** (`up#45`). The
+  uploader captured it once at mount, so re-rendering with a new `upload_id`
+  kept writing to the *old* folder while the callback reported the new one —
+  silent misrouting rather than a visible error.
+- **CSRF-protected apps can exempt the upload route** (`up#118`). Endpoint
+  names are deterministic, so there is something stable to exempt. See
+  [`docs/deployment.md`](deployment.md).
+- **Corrected the "unlimited file size" claim** (`up#105`). `max_file_size`
+  defaults to 1024 MB; the README said otherwise. Documentation was corrected
+  rather than the default changed, which would be a behaviour change.
+
+### Notes
+- `up#120` ("adds an empty line to files") is **not reproducible** — output is
+  byte-identical for text, CRLF and binary payloads.
+- `up#151` ("invalid prop") is **not reproducible** on this fork.
+- `up#101` (division by zero on a zero-byte upload) was already fixed upstream
+  and is inherited.
+- `up#12` / `up#75` / `up#114` (multi-file queue limits) are **not** fixed —
+  they need a browser reproduction across separate drops that the current test
+  suite cannot construct.
+
+### Project
+- Added [`RELEASES.md`](../RELEASES.md), a maintainer-facing release log, and
+  [`docs/BRANCHING.md`](BRANCHING.md) describing the `stable` / `main` /
+  short-lived-branch model. `stable` is fast-forwarded automatically, only
+  after a publish succeeds.
+
+### Tests
+182 headless tests, plus upstream's Selenium suite, green on Python 3.10–3.13.
+
 ## 1.1.0 (dash-uploader-ng)
 
 The first release driven by [ROADMAP.md](../ROADMAP.md), which distills all 93

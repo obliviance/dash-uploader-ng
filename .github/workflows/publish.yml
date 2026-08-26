@@ -128,3 +128,27 @@ jobs:
       - name: Publish to PyPI
         if: github.event_name == 'push' || inputs.target == 'pypi'
         uses: pypa/gh-action-pypi-publish@v1.14.2
+
+  promote-stable:
+    name: Fast-forward stable
+    # Runs only after a real PyPI publish succeeded, so `stable` can never
+    # point at something that was not actually released. See docs/BRANCHING.md.
+    needs: [publish]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Point stable at this tag
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          echo "Promoting stable -> ${TAG} ($(git rev-parse --short "${TAG}"))"
+          # A tag is always a descendant of main here, so this is a
+          # fast-forward in practice; --force keeps it working if stable was
+          # ever moved by hand.
+          git push --force origin "${TAG}^{commit}:refs/heads/stable"

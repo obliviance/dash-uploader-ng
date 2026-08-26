@@ -67,7 +67,7 @@ pip install dash-uploader-ng
 # Quickstart
 
 Full documentation [here](docs/dash-uploader.md) 
->⚠️**Security note**: The Upload component allows POST requests and uploads of arbitrary files to the server harddisk and one should take this into account (with user token checking etc.) if used as part of a public website! For this you can utilize the  `http_request_handler` argument of the [du.configure_upload](https://github.com/fohrloop/dash-uploader/blob/master/docs/dash-uploader.md#duconfigure_upload). (New in version 0.5.0)
+>⚠️**Security note**: The Upload component allows POST requests and uploads of arbitrary files to the server harddisk and one should take this into account (with user token checking etc.) if used as part of a public website! For this you can utilize the  `http_request_handler` argument of the [du.configure_upload](docs/dash-uploader.md#duconfigure_upload). (New in version 0.5.0)
 
 ## Simple example
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 ```
 
 ## Example with callback (and other options)
-- **New in version 0.7.0:** Functions decorated with [`@du.callback`](https://github.com/fohrloop/dash-uploader/blob/dev/docs/dash-uploader.md#ducallback) must take `status` ([`du.UploadStatus`](https://github.com/fohrloop/dash-uploader/blob/dev/docs/dash-uploader.md#duuploadstatus)) object as the only input parameter (previously, `filenames`)
+- **New in version 0.7.0:** Functions decorated with [`@du.callback`](docs/dash-uploader.md#ducallback) must take `status` ([`du.UploadStatus`](docs/dash-uploader.md#duuploadstatus)) object as the only input parameter (previously, `filenames`)
 
 
 ```python
@@ -166,9 +166,9 @@ if __name__ == '__main__':
 
 | What?                                | How?                                                                                                                                                                                                                                         |
 | :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🐞 Found a bug?                       | 🎟 <a href="https://github.com/fohrloop/dash-uploader/issues">File an Issue</a>                                                                                                                                                                   |
+| 🐞 Found a bug?                       | 🎟 <a href="https://github.com/obliviance/dash-uploader-ng/issues">File an Issue</a>                                                                                                                                                                   |
 | 🙋‍♂️ Need help?                         | ❔  <a href="https://stackoverflow.com/questions/ask">Ask a question on StackOverflow</a> <br><a href="https://community.plotly.com/t/show-and-tell-dash-uploader-upload-large-files/38451">📧 Use this thread on community.plotly.com</a>     |
-| 💡  Want to submit a feature request? | <a href="https://community.plotly.com/t/show-and-tell-dash-uploader-upload-large-files/38451">🎭 Discuss about it on community.plotly.com</a><br><a href="https://github.com/fohrloop/dash-uploader/issues">🎫 File an Issue (feature request)</a> |
+| 💡  Want to submit a feature request? | <a href="https://community.plotly.com/t/show-and-tell-dash-uploader-upload-large-files/38451">🎭 Discuss about it on community.plotly.com</a><br><a href="https://github.com/obliviance/dash-uploader-ng/issues">🎫 File an Issue (feature request)</a> |
 | 🧙  Want to write code?               | 🔥 <a href="./docs/CONTRIBUTING.md">Here's how you get started!</a>                                                                                                                                                                           |
 ## Documentation
 - [Documentation](docs/dash-uploader.md)
@@ -178,6 +178,17 @@ if __name__ == '__main__':
 ## Changelog
 
 - [Changelog](./docs/CHANGELOG.md)
+
+## Project
+
+- [ROADMAP.md](ROADMAP.md) — what upstream's 136 issues and PRs asked for, by theme.
+- [RELEASES.md](RELEASES.md) — release log: what was verified for each version, and what went wrong.
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) — what changed, per version.
+- [docs/BRANCHING.md](docs/BRANCHING.md) — branch model and release process.
+- [SECURITY.md](SECURITY.md) — CVE-2026-38360 and how to report a vulnerability.
+
+**Depending on this from git?** Use the `stable` branch — it only ever points at
+a version that was actually published to PyPI.
 
 ## Maintainers
 
