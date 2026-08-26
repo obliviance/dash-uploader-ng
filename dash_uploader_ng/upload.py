@@ -57,6 +57,7 @@ def Upload(
     default_style=None,
     upload_id=None,
     max_files=1,
+    resumable=True,
 ):
     """
     du.Upload component
@@ -108,6 +109,19 @@ def Upload(
         The upload id, created with uuid.uuid1() or uuid.uuid4(),
         for example. If none, creates random session id with
         uuid.uuid1().
+    resumable: bool (default: True)
+        If True, the client asks the server whether each chunk is already
+        present before sending it, so an upload interrupted by a network drop,
+        a browser crash or a server restart picks up where it left off instead
+        of starting again from zero.
+
+        The cost is one small extra request per chunk. Set to False to trade
+        resumability for fewer requests.
+
+        Note: resuming across a *page reload* additionally requires a stable
+        `upload_id`. The default is a fresh `uuid.uuid1()` per component, so a
+        reload starts a new upload folder and there is nothing to resume from.
+        Pass your own session-stable value to get that.
     max_files: int (default: 1)
         EXPERIMENTAL feature. Read below. For bulletproof
         implementation, force usage of zip files and keep
@@ -160,6 +174,7 @@ def Upload(
         disabled=disabled,
         # Not tested so default to one.
         simultaneousUploads=1,
+        resumable=resumable,
         completedMessage=text_completed,
         disabledMessage=text_disabled,
         cancelButton=cancel_button,

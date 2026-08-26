@@ -42,7 +42,10 @@ def test_render01_render_component(dash_duo):
 
     upload = dash_duo.find_element("#dash-uploader")
 
-    assert "dash-uploader-default" == upload.get_attribute("class")
+    # Membership rather than equality: the root element also carries the
+    # always-present `dash-uploader-root` scoping class (see docs/styling.md).
+    # This matches how the rest of the suite already checks classes.
+    assert "dash-uploader-default" in upload.get_attribute("class").split()
 
 
 # Run with pytest -k upload01

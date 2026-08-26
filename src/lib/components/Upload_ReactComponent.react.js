@@ -97,10 +97,17 @@ export default class Upload_ReactComponent extends Component {
             //  is already uploaded, it will be skipped unless the file is removed from the existing 
             // Flow object. (Default: false)
             allowDuplicateUploads: true,
-            // testChunks Make a GET request to the server for each chunks to see if it already exists. 
-            //  If implemented on the server-side, this will allow for upload resumes even after a browser
-            //  crash or even a computer restart. (Default: true) 
-            testChunks: false,
+            // Make a GET request per chunk asking whether the server already has it,
+            // which is what lets an interrupted upload resume instead of restarting
+            // from zero (upstream #40).
+            //
+            // Upstream hard-coded this to false. It had to: the server's GET handler
+            // read the parameters from the form body (flow.js sends them in the query
+            // string on a GET), required a `file` part that a GET never carries, and
+            // answered "chunk missing" with 404 -- which is in flow.js's permanentErrors
+            // list and aborts the whole upload. All three are fixed server-side; see
+            // docs/resumable-uploads.md.
+            testChunks: this.props.resumable,
         });
 
 
@@ -561,6 +568,13 @@ Upload_ReactComponent.propTypes = {
     simultaneousUploads: PropTypes.number,
 
     /**
+     * If True, ask the server whether each chunk is already present before
+     * sending it, so an interrupted upload resumes instead of restarting.
+     * Costs one small extra request per chunk.
+     */
+    resumable: PropTypes.bool,
+
+    /**
      * The service to send the files to
      */
     service: PropTypes.string,
@@ -713,6 +727,7 @@ Upload_ReactComponent.defaultProps = {
     maxFileSize: 1024 * 1024 * 10,
     chunkSize: 1024 * 1024,
     simultaneousUploads: 1,
+    resumable: true,
     service: '/API/dash-uploader',
     className: 'dash-uploader-default',
     hoveredClass: 'dash-uploader-hovered',
