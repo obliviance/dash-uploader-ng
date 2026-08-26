@@ -38,7 +38,7 @@ packaging, and refreshes the dependency tree while keeping the same API.
 - [Credits](#credits)
 
 ## Short summary
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💾 Data file size has no limits. (Except the hard disk size)<bR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💾 No inherent file size limit &mdash; but note `max_file_size` defaults to 1024 MB; raise it for larger uploads.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☎ Call easily a callback after uploading is finished.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📤 Upload files using [flow.js](https://github.com/flowjs/flow.js/) <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📦 All JS and CSS bundled with the package. No need for network calls for CSS/JS.<br>
@@ -54,7 +54,7 @@ packaging, and refreshes the dependency tree while keeping the same API.
 |                       | dash-uploader                                      | [dcc.Upload](https://dash.plotly.com/dash-core-components/upload)                                                                                                                    |
 | --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Underlying technology | [flow.js](https://github.com/flowjs/flow.js/)      | HTML5 API                                                                                                                                                                            |
-| File size             | Unlimited                                          | max ~150-200MB ([link](https://community.plotly.com/t/dash-upload-component-decoding-large-files/8033/11))                                                                           |
+| File size             | No inherent limit (`max_file_size` defaults to 1024 MB) | max ~150-200MB ([link](https://community.plotly.com/t/dash-upload-component-decoding-large-files/8033/11))                                                                           |
 | Uploads to            | Hard disk (server side)                            | First to browser memory (user side) Then, to server using callbacks.                                                                                                                 |
 | Data type             | Uploaded as file; no need to parse at server side. | Uploaded as byte64 encoded string  -> Needs parsing                                                                                                                                  |
 | See upload progress?  | Progressbar out of the box                         | No upload indicators out of the box. Generic loading indicator possible. [Progressbar not possible](https://community.plotly.com/t/upload-after-confirmation-and-progress-bar/7172). |

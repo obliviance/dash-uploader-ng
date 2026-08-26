@@ -25,7 +25,7 @@ and the disabled resumability ([theme 6](#6--resumable-uploads)).
 | [4 · Upload straight to remote storage](#4--upload-straight-to-remote-storage) | 4 | 🔨 Next |
 | [5 · Multi-file upload robustness](#5--multi-file-upload-robustness) | 7 | 📋 Planned |
 | [7 · Deployment, proxies and auth](#7--deployment-proxies-and-auth) | 6 | 📋 Planned |
-| [8 · Large-file throughput](#8--large-file-throughput) | 4 | 📋 Planned |
+| [8 · Large-file throughput](#8--large-file-throughput) | 4 | ✅ Mostly done in 1.2.0 |
 | [9 · Code health](#9--code-health) | 2 | 📋 Planned |
 | [10 · Smaller asks](#10--smaller-asks) | 5 | 📋 Planned |
 
@@ -64,7 +64,7 @@ first.
 | `up#39` (PR) | 13 | Multiple Dash **or Flask** apps for `configure_upload`; adds `upload_component_ids`, backwards compatible |
 | `up#35` | 7 | Multiple `du.Upload` components on one app — one route each, no chunk collisions |
 | `up#17` | 5 | Change the destination folder dynamically |
-| `up#45` | 4 | `upload_id` frozen to the first component created — callbacks report the new id while files land in the old folder |
+| `up#45` | 4 | `upload_id` frozen to the first component created — **fixed in 1.2.0** |
 | `up#106` | 2 | Multi-page app issues |
 | `up#127` | 1 | Components on different pages (works at two, breaks at three) |
 | `up#27` | 1 | POST 404 with multiple Dash apps |
@@ -81,8 +81,7 @@ Closes `up#35`, `up#124`, `up#127`, `up#106`, `up#27`.
 
 **Still open here:** `up#17` (change the folder *dynamically*, after the app is
 serving) needs the destination to be resolved per request rather than at
-configuration time — related to theme 4's storage seam. `up#45` (`upload_id`
-frozen to the first component) is a React-side state bug and is untouched.
+configuration time — related to theme 4's storage seam. `up#45` (`upload_id` frozen to the first component) is **fixed in 1.2.0**.
 
 ---
 
@@ -237,18 +236,28 @@ where the sharpest complaints land.
 
 | Ref | Demand | Ask |
 | --- | ------ | --- |
-| `up#105` | 4 | Default `max_file_size` silently caps uploads at 1 GB |
+| `up#105` | 4 | Default `max_file_size` silently caps uploads at 1 GB — **docs corrected in 1.2.0** |
 | `up#102` | 1 | ~2 orders of magnitude slower than a file copy (11.2 GB: 8.5 s to copy, 12 m 11 s to upload) |
 | `up#30` | 1 | Extremely large files fail outright |
-| `up#142` | 1 | Long filenames break the upload |
+| `up#142` | 1 | Long filenames break the upload — **fixed in 1.2.0** |
 
-**Plan.** `up#102` is the interesting one and is probably three separate costs:
-chunk reassembly reads every chunk into memory one at a time
-(`target_file.write(stored_chunk_file.read())`), `simultaneousUploads` is pinned
-to 1 (`up#69`), and the default 1 MB chunk size is small for multi-gigabyte
-files. Streaming the reassembly with `shutil.copyfileobj` is the cheapest first
-step. `up#142` should be re-tested here — this fork changed filename handling
-and caps length at 200 characters.
+**Done in 1.2.0.** The dominant cost was not what the plan guessed. Completeness
+was tested by `stat()`ing **all N chunks on every request** — O(N²) syscalls
+across an upload, or roughly **131 million `stat()` calls** for `up#102`'s
+11.2 GB file. Replaced with a one-`stat()` gate on the final chunk plus a single
+directory listing, and reassembly now streams via `shutil.copyfileobj` instead
+of reading each chunk whole.
+
+Measured against the pristine upstream handler, same workload: **6.8× faster at
+4000 chunks**, and the gap widens because upstream is quadratic (20× the chunks
+cost it 115× the time) while the fork is linear (20× → 19.5×).
+
+`up#142` and `up#105` are fixed too — see below. `up#30` should improve
+substantially for the same reason as `up#102`, but is not independently
+verified here.
+
+**Still open:** `up#69` (`simultaneousUploads > 1`) is untested and remains
+pinned to 1.
 
 ---
 

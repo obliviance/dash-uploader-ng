@@ -227,14 +227,32 @@ class BaseHttpRequestHandler:
         r.chunk_data.save(chunk_file)
         self.remove_file(lock_file_path)
 
-        # check if the upload is complete
-        chunk_paths = [
-            os.path.join(
-                temporary_folder_for_file_chunks, get_chunk_name(r.filename, x)
+        # Check if the upload is complete.
+        #
+        # Upstream stat()ed all N chunks on EVERY request, which is O(N^2)
+        # syscalls across an upload: the 11.2 GB file in upstream #102 is 11468
+        # chunks at the default 1 MB, so ~131 million stat() calls. That is the
+        # bulk of "two orders of magnitude slower than a file copy".
+        #
+        # One directory listing per request replaces N stat()s, and the cheap
+        # length test short-circuits before the exact set comparison is built,
+        # so the common case (an upload still in progress) costs one readdir.
+        # Cheap gate first: if the final chunk is not on disk the upload cannot
+        # be complete, whatever else is. flow.js sends chunks in order by
+        # default (simultaneousUploads=1), so for all but the last request this
+        # is a single stat() and we stop here.
+        last_chunk = os.path.join(
+            temporary_folder_for_file_chunks,
+            get_chunk_name(r.filename, r.n_chunks_total),
+        )
+        upload_complete = False
+        if os.path.exists(last_chunk):
+            present = self.chunk_files_present(
+                temporary_folder_for_file_chunks, r.filename
             )
-            for x in range(1, r.n_chunks_total + 1)
-        ]
-        upload_complete = all([os.path.exists(p) for p in chunk_paths])
+            upload_complete = len(present) >= r.n_chunks_total and present.issuperset(
+                get_chunk_name(r.filename, x) for x in range(1, r.n_chunks_total + 1)
+            )
 
         # combine all the chunks to create the final file
         if upload_complete:
@@ -242,16 +260,7 @@ class BaseHttpRequestHandler:
             # Make sure all files are finished writing
             # but do not wait forever..
             tried = 0
-            while any(
-                [
-                    os.path.isfile(
-                        os.path.join(
-                            temporary_folder_for_file_chunks, ".lock_{:d}".format(chunk)
-                        )
-                    )
-                    for chunk in range(1, r.n_chunks_total + 1)
-                ]
-            ):
+            while self.locks_present(temporary_folder_for_file_chunks):
                 tried += 1
                 if tried >= 5:
                     logger.error(
@@ -264,6 +273,13 @@ class BaseHttpRequestHandler:
                     )
                 time.sleep(1)
 
+            chunk_paths = [
+                os.path.join(
+                    temporary_folder_for_file_chunks, get_chunk_name(r.filename, x)
+                )
+                for x in range(1, r.n_chunks_total + 1)
+            ]
+
             # Make sure some other chunk didn't trigger file reconstruction
             target_file_name = ensure_within(
                 upload_session_root, upload_session_root / r.filename
@@ -272,10 +288,15 @@ class BaseHttpRequestHandler:
                 logger.info("File %s exists already. Overwriting..", target_file_name)
                 self.remove_file(target_file_name)
 
+            # Stream each chunk rather than reading it whole. Upstream's
+            # `.read()` pulled an entire chunk into memory per iteration, so
+            # peak usage tracked chunk_size -- fine at the 1 MB default, but
+            # anyone raising chunk_size to make large uploads bearable
+            # (upstream #102, #30) paid for it in RAM per concurrent upload.
             with open(target_file_name, "ab") as target_file:
                 for p in chunk_paths:
                     with open(p, "rb") as stored_chunk_file:
-                        target_file.write(stored_chunk_file.read())
+                        shutil.copyfileobj(stored_chunk_file, target_file)
             self.server.logger.debug("File saved to: %s", target_file_name)
             shutil.rmtree(temporary_folder_for_file_chunks)
 
@@ -283,6 +304,27 @@ class BaseHttpRequestHandler:
 
     def get(self):
         return self._handle(self._get)
+
+    @staticmethod
+    def chunk_files_present(folder, filename):
+        """Names of this file's chunks currently on disk, from one directory read.
+
+        One readdir instead of one stat() per chunk. See the call site for why
+        that difference dominates large uploads.
+        """
+        prefix = f"{filename}_part_"
+        try:
+            return {name for name in os.listdir(folder) if name.startswith(prefix)}
+        except OSError:
+            return set()
+
+    @staticmethod
+    def locks_present(folder):
+        """Whether any chunk write is still in progress, from one directory read."""
+        try:
+            return any(name.startswith(".lock_") for name in os.listdir(folder))
+        except OSError:
+            return False
 
     def chunk_is_complete(self, chunk_file, lock_file, expected_size):
         """Whether a chunk found on disk can be trusted and skipped.

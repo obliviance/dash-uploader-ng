@@ -56,7 +56,7 @@ class TestSafeSegment:
             "trailing ",
             "CON",
             "nul.txt",
-            "x" * 201,
+            "x" * 256,
         ],
     )
     def test_rejects_anything_that_is_not_one_boring_segment(self, value):
@@ -117,12 +117,61 @@ class TestSafeFilename:
             "report.csv.",  # Windows strips the trailing dot -> "report.csv"
             "report.csv ",
             "CON.txt",
-            "x" * 201,
+            "x" * 244,
         ],
     )
     def test_rejects_names_with_nothing_safe_left(self, value):
         with pytest.raises(UnsafePathError):
             safe_filename(value, field="flowFilename")
+
+
+class TestLengthLimitsAreInBytes:
+    """Filesystems cap a path component at 255 *bytes*, not characters.
+
+    Measuring characters was wrong in both directions: it rejected legal
+    201-243 character ASCII names (upstream #142 territory), and it accepted a
+    200-character CJK name that is 600 bytes and then failed at write time with
+    an opaque 500.
+    """
+
+    def test_a_long_ascii_filename_is_accepted(self):
+        # 243 bytes: the most that still leaves room for "_part_100000".
+        name = "x" * 239 + ".csv"
+        assert safe_filename(name, field="flowFilename") == name
+
+    def test_a_filename_with_no_room_for_the_chunk_suffix_is_rejected(self):
+        with pytest.raises(UnsafePathError, match="bytes"):
+            safe_filename("x" * 244, field="flowFilename")
+
+    def test_a_multibyte_filename_is_measured_in_bytes(self):
+        # 80 CJK characters is only 80 characters but 240 bytes; with ".csv"
+        # that is 244, one past the limit.
+        with pytest.raises(UnsafePathError, match="bytes"):
+            safe_filename("報" * 80 + ".csv", field="flowFilename")
+
+    def test_a_short_multibyte_filename_is_fine(self):
+        name = "報" * 50 + ".csv"
+        assert safe_filename(name, field="flowFilename") == name
+
+    def test_a_directory_segment_may_use_the_full_255_bytes(self):
+        # No "_part_<n>" is appended to a directory name, so it gets the whole
+        # budget.
+        name = "a" * 255
+        assert safe_segment(name, field="upload_id") == name
+        with pytest.raises(UnsafePathError, match="bytes"):
+            safe_segment("a" * 256, field="upload_id")
+
+    def test_the_longest_accepted_filename_still_produces_a_writable_chunk_name(
+        self, tmp_path
+    ):
+        """The limit has to be justified by the filesystem actually accepting it."""
+        from dash_uploader_ng.httprequesthandler import MAX_CHUNKS, get_chunk_name
+
+        name = safe_filename("x" * 239 + ".csv", field="flowFilename")
+        chunk_name = get_chunk_name(name, MAX_CHUNKS)
+        # Would raise OSError("File name too long") if the budget were wrong.
+        (tmp_path / chunk_name).write_bytes(b"x")
+        assert len(chunk_name.encode()) <= 255
 
 
 class TestEnsureWithin:
