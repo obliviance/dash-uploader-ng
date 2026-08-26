@@ -43,7 +43,7 @@ def _normalize_state(state):
     return states
 
 
-def _create_dash_callback(callback, settings):  # pylint: disable=redefined-outer-name
+def _create_dash_callback(callback, settings, component_id=None):  # pylint: disable=redefined-outer-name
     """Wrap the dash callback with the du.settings.
     This function could be used as a wrapper. It will add the
     configurations of dash-uploader to the callback.
@@ -67,10 +67,13 @@ def _create_dash_callback(callback, settings):  # pylint: disable=redefined-oute
 
         uploadedfilepaths = []
         if uploaded_filenames is not None:
+            # Resolve the folder for *this* component, so a second uploader
+            # reports paths under its own destination (upstream #124, #127).
+            upload_folder_root = settings.get_config(component_id).upload_folder_root
             if upload_id:
-                root_folder = Path(settings.UPLOAD_FOLDER_ROOT) / upload_id
+                root_folder = Path(upload_folder_root) / upload_id
             else:
-                root_folder = Path(settings.UPLOAD_FOLDER_ROOT)
+                root_folder = Path(upload_folder_root)
 
             for filename in uploaded_filenames:
                 file = root_folder / filename
@@ -155,11 +158,24 @@ def callback(
         dash_callback = _create_dash_callback(
             function,
             settings,
+            component_id=id,
         )
 
-        if not hasattr(settings, "app"):
-            raise Exception(
-                "The du.configure_upload must be called before the @du.callback can be used! Please, configure the dash-uploader."
+        if not settings.has_config(id):
+            raise settings.NotConfigured(
+                "du.configure_upload must be called before @du.callback can be "
+                f"used. Nothing is registered for component id {id!r}, and "
+                "there is no default configuration."
+            )
+
+        config = settings.get_config(id)
+        app = config.app
+        if not hasattr(app, "callback"):
+            raise TypeError(
+                "@du.callback needs a dash.Dash app, but du.configure_upload "
+                f"was given a {type(app).__name__}. Configure with the Dash "
+                "app (or its .server for the routes only) if you need "
+                "callbacks."
             )
 
         kwargs = dict()
@@ -178,7 +194,7 @@ def callback(
         # State: Pass along extra values without firing the callbacks.
         #
         # See also: https://dash.plotly.com/basic-callbacks
-        dash_callback = settings.app.callback(
+        dash_callback = app.callback(
             output,
             [Input(id, "dashAppCallbackBump")],
             [

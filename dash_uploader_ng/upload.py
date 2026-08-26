@@ -157,7 +157,20 @@ def Upload(
     if upload_id is None:
         upload_id = uuid.uuid1()
 
-    service = update_upload_api(settings.requests_pathname_prefix, settings.upload_api)
+    # Resolve the configuration governing *this* component, so several
+    # uploaders can post to different endpoints (upstream #35, #124, #127).
+    # Falls back to the default configuration, so single-uploader apps are
+    # unaffected.
+    try:
+        service = settings.get_config(id).service
+    except settings.NotConfigured:
+        # Keep the historical behaviour of rendering with the default endpoint
+        # rather than raising: du.Upload() before du.configure_upload() was
+        # tolerated, and erroring here would break layouts defined at import
+        # time.
+        service = update_upload_api(
+            settings.requests_pathname_prefix, settings.upload_api
+        )
 
     arguments = dict(
         id=id,
