@@ -14,6 +14,21 @@ import './progressbar.css';
 import './button.css';
 import './uploader.css';
 
+/**
+ * Always present on the component's root element, and not user-overridable.
+ *
+ * Every rule in the three stylesheets above is scoped beneath this class, so
+ * that importing the component cannot restyle the host application. Without it
+ * the bundled Bootstrap selectors (`.btn`, `.progress`, and even the bare
+ * `progress` element) were injected into <head> and applied page-wide -- the
+ * cause of upstream #91 (breaks Font Awesome) and #43 (restyles unrelated
+ * buttons).
+ *
+ * The user-facing `className` prop is deliberately left alone; this is added
+ * alongside whatever the user sets.
+ */
+const ROOT_CLASS = 'dash-uploader-root';
+
 
 /**
  * Convert bytes to Megabytes
@@ -473,7 +488,7 @@ export default class Upload_ReactComponent extends Component {
         }
 
         const getClass = () => {
-            let classList = [this.props.className];
+            let classList = [ROOT_CLASS, this.props.className];
             const classes = {
                 isUploading: this.props.uploadingClass,
                 isPaused: this.props.pausedClass,
