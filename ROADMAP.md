@@ -24,7 +24,7 @@ and the disabled resumability ([theme 6](#6--resumable-uploads)).
 | [2 · Callback flexibility](#2--callback-flexibility) | 6 | ✅ Mostly done in 1.1.0 |
 | [4 · Upload straight to remote storage](#4--upload-straight-to-remote-storage) | 4 | 🔨 Next |
 | [5 · Multi-file upload robustness](#5--multi-file-upload-robustness) | 7 | 📋 Planned |
-| [7 · Deployment, proxies and auth](#7--deployment-proxies-and-auth) | 6 | 📋 Planned |
+| [7 · Deployment, proxies and auth](#7--deployment-proxies-and-auth) | 6 | 🔨 Partly done in 1.2.0 |
 | [8 · Large-file throughput](#8--large-file-throughput) | 4 | ✅ Mostly done in 1.2.0 |
 | [9 · Code health](#9--code-health) | 2 | 📋 Planned |
 | [10 · Smaller asks](#10--smaller-asks) | 5 | 📋 Planned |
@@ -222,10 +222,16 @@ machinery, so anything in front of the app tends to intercept it.
 | `up#131` | 1 | Connection reset behind an RStudio Connect proxy |
 | `up#118` | 0 | Does not work with CSRF protection enabled |
 
-**Plan.** `up#118` is cheap and self-contained: document the exemption and give
-the route a stable, importable name so a CSRF layer can exempt it. The rest
-mostly need regression tests around `requests_pathname_prefix` /
-`routes_pathname_prefix`, which nothing currently covers.
+**Partly done in 1.2.0.** Endpoint names are now deterministic (a side effect of
+the multiple-uploader work), which is exactly what a CSRF layer needs to exempt
+the route — `up#118` is documented and verified in
+[`docs/deployment.md`](docs/deployment.md), along with the proxy body-size and
+timeout settings behind `up#131`, the ephemeral-filesystem cause behind `up#16`,
+and the shared-filesystem requirement behind `up#53`.
+
+**Still open:** these are environment problems documented rather than fixed in
+code, and nothing yet covers `requests_pathname_prefix` /
+`routes_pathname_prefix` with regression tests.
 
 ---
 
