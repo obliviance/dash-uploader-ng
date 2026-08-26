@@ -1,0 +1,128 @@
+name: CI
+
+# Runs on every push and pull request. The publish workflow re-runs these same
+# checks as a release gate, but waiting for a tag to find out something broke is
+# too late -- and it also means the release workflow's actions are never
+# exercised until the moment they matter.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Don't pile up runs on a branch that's being pushed to repeatedly.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - run: python -m pip install --upgrade "dash>=2.0" pyyaml pytest flask
+
+      # The JS bundle is generated, not committed, so the package cannot even
+      # be imported until it is built -- see RELEASING.md.
+      - run: npm ci && npm run build
+
+      # Path-safety unit tests, the CVE-2026-38360 end-to-end tests, and the
+      # differential tests against the vendored upstream handler.
+      - run: python -m pytest
+
+  browser-test:
+    name: Upstream browser suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      # dash's `testing` extra pins selenium<=4.2, which predates Selenium
+      # Manager -- so point the suite at the runner's preinstalled Chrome and
+      # chromedriver explicitly via the conftest's env overrides.
+      - run: python -m pip install --upgrade "dash[testing]==4.4.1" pyyaml
+      - run: npm ci && npm run build
+      - name: Run upstream's Selenium suite against the fork
+        env:
+          CHROME_BINARY: /usr/bin/google-chrome
+        run: |
+          export CHROMEDRIVER="$(command -v chromedriver || true)"
+          python -m pytest tests/browser -W ignore::DeprecationWarning
+
+  package:
+    name: Build and validate distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - run: python -m pip install --upgrade build twine "dash>=2.0" pyyaml
+      - run: npm ci && npm run build
+      - run: python -m build
+      - run: python -m twine check dist/*
+
+      - name: Fail if the JS bundle did not make it into the wheel
+        run: |
+          unzip -l dist/*.whl | grep -q '_build/dash_uploader_ng.min.js' \
+            || { echo "::error::wheel is missing the JS bundle"; exit 1; }
+
+      - name: Install the built wheel and render a real Dash app
+        run: |
+          python -m venv /tmp/wheelcheck
+          /tmp/wheelcheck/bin/pip install --quiet dist/*.whl
+          cd /tmp && /tmp/wheelcheck/bin/python -c "
+          import dash, dash_uploader_ng as du
+          from dash import html
+          app = dash.Dash(__name__)
+          du.configure_upload(app, '/tmp/uploads')
+          app.layout = html.Div([du.Upload()])
+          with app.server.test_client() as c:
+              assert c.get('/').status_code == 200
+              js = c.get('/_dash-component-suites/dash_uploader_ng/_build/dash_uploader_ng.min.js')
+              assert js.status_code == 200 and len(js.get_data()) > 1000
+          from dash_uploader_ng.safepath import safe_segment, UnsafePathError
+          try:
+              safe_segment('../../etc', field='upload_id')
+              raise SystemExit('FAIL: traversal accepted')
+          except UnsafePathError:
+              pass
+          print('wheel OK:', du.__version__)
+          "
+
+  npm-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # The shipped bundle is built from these; a new advisory here should be
+      # visible rather than discovered at release time.
+      - run: npm audit --audit-level=moderate
