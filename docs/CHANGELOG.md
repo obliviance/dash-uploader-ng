@@ -1,5 +1,65 @@
 # Changelog
 
+## 1.1.0 (dash-uploader-ng)
+
+The first release driven by [ROADMAP.md](../ROADMAP.md), which distills all 93
+issues and 43 pull requests from the archived upstream repository into ten
+themes. Upstream issues are cited as `up#N`.
+
+Everything here is backwards compatible. Existing single-uploader apps need no
+changes.
+
+### Added
+- **Resumable uploads** (`up#40`). An upload interrupted by a network drop, a
+  browser crash or a server restart resumes instead of restarting from zero. On
+  by default; `du.Upload(resumable=False)` turns it off. See
+  [`docs/resumable-uploads.md`](resumable-uploads.md).
+- **Several `du.Upload` components in one app** (`up#35`, `up#124`, `up#127`,
+  `up#106`, `up#27`). `configure_upload()` may now be called more than once,
+  with `upload_component_ids` naming the components each call governs. It also
+  accepts a bare `flask.Flask` server. See
+  [`docs/multiple-uploaders.md`](multiple-uploaders.md).
+- **Extra callback state** (`up#104`). `du.callback(state=...)` passes values
+  from elsewhere in the layout to the callback alongside the `UploadStatus` —
+  the target directory, the logged-in user, a token.
+- **Documented CSS class reference** (`up#25`) and styling recipes, including
+  centering the progress percentage (`up#81`), in
+  [`docs/styling.md`](styling.md).
+
+### Fixed
+- **The bundled CSS no longer leaks into the host application** (`up#91`,
+  `up#43`). `button.css` and `progressbar.css` shipped Bootstrap 4 rules with
+  unscoped selectors — `.btn`, `.progress`, and a bare `progress` *element*
+  selector — injected into `<head>`, so importing the component restyled
+  buttons and broke icon fonts elsewhere on the page. Every bundled rule is now
+  scoped beneath `.dash-uploader-root`.
+- **The chunk-test endpoint works at all.** It read `request.form` while
+  flow.js sends test parameters in the query string, required a `file` part
+  that a GET never carries, and answered `404` for "chunk missing" — which is
+  in flow.js's `permanentErrors`, so it aborted the upload rather than
+  prompting a send. It now answers `204`.
+- **Interrupted writes are not trusted on resume.** A chunk is only skipped
+  when it has no stale lock file, matches the client's declared chunk size, and
+  is non-empty. Without this, a crash-truncated chunk reassembles into a file
+  that looks like a successful upload and is silently corrupt.
+- **Multiple `configure_upload()` calls no longer collide.** Flask endpoint
+  names are derived from the upload API path rather than the view function's
+  name, which was `get`/`post` for every handler instance. Re-using an
+  `upload_api` now raises an error that says what to do.
+
+### Notes
+- **Multiple outputs from `du.callback` already worked** (`up#13`) — `output`
+  has always been forwarded to `app.callback`, which accepts a list. It was a
+  documentation gap, and is now covered by tests.
+- Three browser tests were changed from exact equality to membership when
+  checking the root element's class, since the component now also carries the
+  `dash-uploader-root` scoping class. This matches the convention the rest of
+  that suite already used.
+
+### Tests
+170 headless tests (up from 115) plus upstream's Selenium suite, green on
+Python 3.10, 3.11, 3.12 and 3.13.
+
 ## 1.0.0 (dash-uploader-ng)
 
 First release of `dash-uploader-ng`, a maintained fork of `dash-uploader`

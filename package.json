@@ -1,6 +1,6 @@
 {
   "name": "dash_uploader_ng",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Large file upload component for Dash -- maintained fork of dash-uploader",
   "repository": {
     "type": "git",

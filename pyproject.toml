@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dash-uploader-ng"
-version = "1.0.0"
+version = "1.1.0"
 description = "Large file upload component for Dash -- a maintained, security-patched fork of dash-uploader"
 readme = "docs/README-PyPi.md"
 requires-python = ">=3.10"
