@@ -17,19 +17,47 @@ Bug fixes and performance only; no new features.
 
 | | |
 | --- | --- |
-| Tag | [`v1.2.0`](https://github.com/obliviance/dash-uploader-ng/releases/tag/v1.2.0) |
-| PyPI | [dash-uploader-ng 1.2.0](https://pypi.org/project/dash-uploader-ng/1.2.0/) |
-| Released from | `main` @ `_RELEASE_SHA_` |
-| Gating CI run | `_RELEASE_RUN_` |
+| Status | **Tagged, publication pending** — see *Blocked* below |
+| Tag | `v1.2.0` @ `7e26ded` (pushed 2026-08-26) |
+| PyPI | ❌ not yet published |
+| Released from | `main` @ `7e26ded` |
+| Gating CI run | none — GitHub Actions did not create a run for this commit |
 | Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+> ### ⚠️ Blocked: GitHub Actions stopped creating runs
+>
+> The `v1.2.0` tag is pushed and the release is fully prepared, but the publish
+> workflow **never started**, so nothing reached PyPI. The same thing happened
+> to the `main` push at `7e26ded` immediately before it: zero workflow runs for
+> either ref.
+>
+> Ruled out: both workflows report `state=active`, the tag exists on the remote,
+> and the identical setup ran successfully seven times earlier the same day —
+> the last at 14:12 UTC for `8971840`.
+>
+> Not ruled out, and the most likely cause: the account's Actions
+> usage/spending limit. When it is reached, GitHub silently stops creating runs
+> rather than failing them.
+>
+> This could not be worked around from here. Dispatching the workflow needs
+> `actions: write`, which the available token does not have (HTTP 403), and
+> publishing by hand is impossible by design — Trusted Publishing only issues
+> credentials to a GitHub Actions run, and no PyPI API token exists in this
+> environment.
+>
+> **To finish the release:** check Actions usage under
+> *Settings → Billing → Actions*, then re-run the workflow from the Actions tab,
+> or delete and re-push the tag. `stable` will fast-forward itself once the
+> publish succeeds.
 
 **Headline:** large-upload throughput. The completeness check `stat()`ed all N
 chunks on every request — O(N²) syscalls, roughly 131 million `stat()` calls
 for the 11.2 GB file in upstream #102.
 
-**Verified**
+**Verified** — locally, since CI never ran:
 
-- 182 headless tests on Python 3.10, 3.11, 3.12, 3.13.
+- 182 headless tests on Python 3.10, 3.11, 3.12, 3.13 (each in its own venv).
+- Wheel and sdist built and `twine check`ed clean.
 - Upstream's Selenium browser suite: 7 passed, 1 skipped (its own Windows-only
   marker), against Chromium 151.
 - Performance measured against the vendored pristine upstream handler on
