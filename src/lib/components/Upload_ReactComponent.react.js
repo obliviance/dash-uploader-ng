@@ -158,6 +158,25 @@ export default class Upload_ReactComponent extends Component {
     }
 
     componentDidUpdate(prevProps) {
+        // The Flow object is built once in componentDidMount, so anything read
+        // from props at that moment is frozen into it. When Dash re-renders
+        // this component with a different upload_id, the uploader kept posting
+        // the ORIGINAL one -- files landed in the old folder while the callback
+        // (which reads the live prop) reported the new one. That is upstream
+        // #45, and it is a silent data-routing bug rather than a visible error.
+        //
+        // flow.js re-reads opts.query and opts.target for every request, so
+        // updating them here is enough; chunks already in flight keep the
+        // values they were queued with.
+        if (this.flow) {
+            if (prevProps.upload_id !== this.props.upload_id) {
+                this.flow.opts.query = { upload_id: this.props.upload_id };
+            }
+            if (prevProps.service !== this.props.service) {
+                this.flow.opts.target = this.props.service;
+            }
+        }
+
         const prevEnableDrop = (prevProps.disableDragAndDrop === false && prevProps.disabled === false);
         const curEnableDrop = (this.props.disableDragAndDrop === false && this.props.disabled === false);
 

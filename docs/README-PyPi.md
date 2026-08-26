@@ -11,7 +11,7 @@ The upload package for [Dash](https://dash.plotly.com/) applications using large
 
 
 ## Short summary
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💾 Data file size has no limits. (Except the hard disk size)<bR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💾 No inherent file size limit &mdash; but note `max_file_size` defaults to 1024 MB; raise it for larger uploads.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☎ Call easily a callback after uploading is finished.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 📦 Upload files using [flow.js](https://github.com/flowjs/flow.js/) 
 <br>

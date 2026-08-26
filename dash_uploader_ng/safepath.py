@@ -46,10 +46,18 @@ __all__ = [
 # alphanumeric, which is what rules out "..", "." and dotfiles in one go.
 _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
-# Generous enough for uuid4 ("...36 chars"), flow.js identifiers (file size +
-# scrubbed name) and real-world filenames, while staying under the 255-byte
-# per-component limit that ext4/APFS/NTFS all share.
-_MAX_SEGMENT_LENGTH = 200
+# ext4, APFS, NTFS and friends all cap a single path component at 255 *bytes*.
+# Measuring characters instead is wrong in both directions: it rejects
+# perfectly legal 201-243 character ASCII names (upstream #142), and it accepts
+# a 200-character CJK name that is 600 bytes and fails at write time with an
+# opaque 500.
+_MAX_SEGMENT_BYTES = 255
+
+# A filename additionally has "_part_<n>" appended to form each chunk file, so
+# it needs headroom or a maximum-length upload dies on its first chunk write.
+# MAX_CHUNKS is 100000, so the longest suffix is "_part_100000" -- 12 bytes.
+_CHUNK_SUFFIX_BYTES = len("_part_") + 6
+_MAX_FILENAME_BYTES = _MAX_SEGMENT_BYTES - _CHUNK_SUFFIX_BYTES
 
 # Windows refuses to create these names in any directory, with or without an
 # extension. Checked on every platform: an upload accepted on a Linux host may
@@ -77,7 +85,7 @@ def _reject(field, value, reason):
     raise UnsafePathError(f"{field}={shown} rejected: {reason}")
 
 
-def _check_common(field, value):
+def _check_common(field, value, max_bytes=_MAX_SEGMENT_BYTES):
     """Checks that apply to any single path component."""
     if not value:
         _reject(field, value, "empty")
@@ -85,8 +93,14 @@ def _check_common(field, value):
         _reject(field, value, "contains a null byte")
     if any(ord(c) < 32 or ord(c) == 127 for c in value):
         _reject(field, value, "contains a control character")
-    if len(value) > _MAX_SEGMENT_LENGTH:
-        _reject(field, value, f"longer than {_MAX_SEGMENT_LENGTH} characters")
+    encoded_length = len(value.encode("utf-8", errors="surrogatepass"))
+    if encoded_length > max_bytes:
+        _reject(
+            field,
+            value,
+            f"is {encoded_length} bytes, over the {max_bytes}-byte limit for "
+            "one path component",
+        )
     # Windows silently strips trailing dots and spaces, so "evil.py." and
     # "evil.py " both resolve to "evil.py" there -- enough to slip past any
     # extension check a caller layers on top of this.
@@ -156,7 +170,9 @@ def safe_filename(value, field):
     # separator that is only meaningful on the *other* platform.
     name = PureWindowsPath(PurePosixPath(value).name).name
 
-    _check_common(field, name)
+    # Stricter than a bare segment: room is reserved for the "_part_<n>" that
+    # every chunk file appends.
+    _check_common(field, name, max_bytes=_MAX_FILENAME_BYTES)
     if name in (".", ".."):
         _reject(field, value, "is a path traversal component")
     if not _SAFE_SEGMENT.match(name):
