@@ -20,9 +20,9 @@ and the disabled resumability ([theme 6](#6--resumable-uploads)).
 | [Already closed out in 1.0.0](#already-closed-out-in-100) | 9 | ✅ Done |
 | [3 · CSS leaks into the host app](#3--css-leaks-into-the-host-app) | 6 | ✅ Done in 1.1.0 |
 | [6 · Resumable uploads](#6--resumable-uploads) | 1 | ✅ Done in 1.1.0 |
-| [1 · Multiple uploaders in one app](#1--multiple-uploaders-in-one-app) | 8 | 🔨 In progress |
-| [2 · Callback flexibility](#2--callback-flexibility) | 6 | 🔨 In progress |
-| [4 · Upload straight to remote storage](#4--upload-straight-to-remote-storage) | 4 | 📋 Planned |
+| [1 · Multiple uploaders in one app](#1--multiple-uploaders-in-one-app) | 8 | ✅ Mostly done in 1.1.0 |
+| [2 · Callback flexibility](#2--callback-flexibility) | 6 | ✅ Mostly done in 1.1.0 |
+| [4 · Upload straight to remote storage](#4--upload-straight-to-remote-storage) | 4 | 🔨 Next |
 | [5 · Multi-file upload robustness](#5--multi-file-upload-robustness) | 7 | 📋 Planned |
 | [7 · Deployment, proxies and auth](#7--deployment-proxies-and-auth) | 6 | 📋 Planned |
 | [8 · Large-file throughput](#8--large-file-throughput) | 4 | 📋 Planned |
@@ -70,9 +70,19 @@ first.
 | `up#27` | 1 | POST 404 with multiple Dash apps |
 | `up#124` | 0 | Two uploads on one page → two folders |
 
-**Plan.** Move per-component configuration out of module globals into a
-registry keyed by component id, so `configure_upload()` can be called more than
-once. `up#39` is a reviewed, backwards-compatible starting point.
+**Done in 1.1.0.** Configuration moved out of module globals into a registry
+keyed by component id, and Flask endpoint names are now derived from the upload
+API path rather than the view function's name (which was `get`/`post` for every
+handler, so a second call collided). `configure_upload()` takes
+`upload_component_ids`, and accepts a bare `flask.Flask` server. See
+[`docs/multiple-uploaders.md`](docs/multiple-uploaders.md).
+
+Closes `up#35`, `up#124`, `up#127`, `up#106`, `up#27`.
+
+**Still open here:** `up#17` (change the folder *dynamically*, after the app is
+serving) needs the destination to be resolved per request rather than at
+configuration time — related to theme 4's storage seam. `up#45` (`upload_id`
+frozen to the first component) is a React-side state bug and is untouched.
 
 ---
 
@@ -90,8 +100,16 @@ state. Users repeatedly reach for a normal `@app.callback` and hit a wall.
 | `up#121` | 1 | Support Dash background callbacks |
 | `up#119` | 1 | Incompatible with dash-extensions `DashProxy` |
 
-**Plan.** Accept a list of `Output`s and an optional `state=` sequence.
-`up#130` is a clean starting point for the state half.
+**Done in 1.1.0.** `du.callback` accepts `state=` (a `State` or a sequence of
+them), passed through to the callback after the `UploadStatus`. Multiple
+outputs turned out to already work — `output` was always forwarded to
+`app.callback`, which accepts a list — so `up#13` was a documentation gap
+rather than a missing feature, and is now covered by tests.
+
+Closes `up#104`, `up#13`.
+
+**Still open here:** `up#103` (use a plain `@app.callback`), `up#121`
+(background callbacks) and `up#119` (dash-extensions `DashProxy`).
 
 ---
 
