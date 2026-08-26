@@ -6,7 +6,7 @@ name: CI
 # exercised until the moment they matter.
 on:
   push:
-    branches: ["**"]
+    branches: ["**"]   # main, stable, and every feature/fix/docs branch
   pull_request:
   workflow_dispatch:
 
