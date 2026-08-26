@@ -90,8 +90,10 @@ def test_disabled01_check_disabled_property_update(dash_duo):
     assert len(check_boxes) == 2, "The provided configs for this app should be 2."
 
     # Check the upload state, should be default now.
+    # Membership rather than equality: the root element also carries the
+    # always-present `dash-uploader-root` scoping class (see docs/styling.md).
     assert (
-        upload.get_attribute("class") == "dash-uploader-default"
+        "dash-uploader-default" in upload.get_attribute("class").split()
     ), 'The current uploader class should be "dash-uploader-default".'
 
     # Click the checkbox named "Disabled".
@@ -230,10 +232,12 @@ def test_disabled02_check_disabled_effect(
         shutil.rmtree(uploaded_file.parent)
 
     # Check the upload state, should be default or complelte now.
-    uploader_class = upload.get_attribute("class")
+    # Membership rather than equality: the root element also carries the
+    # always-present `dash-uploader-root` scoping class (see docs/styling.md).
+    uploader_class_list = upload.get_attribute("class").split()
     assert (
-        uploader_class == "dash-uploader-default"
-        or uploader_class == "dash-uploader-completed"
+        "dash-uploader-default" in uploader_class_list
+        or "dash-uploader-completed" in uploader_class_list
     ), 'The current uploader class should be "dash-uploader-default" or "dash-uploader-completed".'
 
     # Upload the file, both tests are expected to success.

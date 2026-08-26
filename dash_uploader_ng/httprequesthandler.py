@@ -24,6 +24,15 @@ logger = logging.getLogger(__name__)
 # the 1 MB default chunk size this still allows a ~100 GB upload.
 MAX_CHUNKS = 100_000
 
+# Answer to flow.js's chunk-test GET meaning "not uploaded yet, send it".
+#
+# It must be a status that is in neither flow.js's `successStatuses`
+# ([200, 201, 202] -> "already have it, skip") nor its `permanentErrors`
+# ([404, 413, 415, 500, 501] -> "give up on the whole upload"). Upstream used
+# 404, which is in the second list. 204 No Content is in neither and carries
+# the right semantics.
+CHUNK_NOT_PRESENT_STATUS = 204
+
 
 def get_chunk_name(uploaded_filename, chunk_number):
     return f"{uploaded_filename}_part_{chunk_number}"
@@ -42,12 +51,15 @@ class RequestData:
     # boundary, so that no downstream code has to remember to do it -- that
     # forgetting is exactly what CVE-2026-38360 was. See safepath.py.
 
-    def __init__(self, request):
+    def __init__(self, request, require_file=True):
         """
         Parameters
         ----------
         request: flask.request
             The Flask request object
+        require_file: bool
+            Whether a `file` part must be present. True for the upload POST;
+            False for the chunk-test GET, which by definition carries no body.
 
         Raises
         ------
@@ -55,20 +67,38 @@ class RequestData:
             If any client-supplied field that reaches the filesystem is not a
             safe path component.
         """
+        # flow.js puts its parameters in the multipart body on the upload POST,
+        # but in the QUERY STRING on the chunk-test GET (see prepareXhrRequest
+        # in flow.js). Upstream read request.form unconditionally, so every
+        # field came back empty on a GET -- one of three reasons chunk testing
+        # could never have worked. Picking the source by method keeps the two
+        # cases explicit, and stops a query parameter shadowing a form field on
+        # a POST.
+        values = request.form if request.method == "POST" else request.args
+
         # Available fields: https://github.com/flowjs/flow.js
-        self.n_chunks_total = self._get_chunk_count(request)
-        self.chunk_number = request.form.get("flowChunkNumber", default=1, type=int)
+        self.n_chunks_total = self._get_chunk_count(values)
+        self.chunk_number = values.get("flowChunkNumber", default=1, type=int)
         if self.chunk_number is None or not 1 <= self.chunk_number <= self.n_chunks_total:
             raise UnsafePathError(
                 f"flowChunkNumber={self.chunk_number} is out of range "
                 f"1..{self.n_chunks_total}"
             )
 
+        # Size of THIS chunk, per the client. Used to verify a chunk found on
+        # disk during a resume is actually complete -- see
+        # BaseHttpRequestHandler.chunk_is_complete.
+        self.current_chunk_size = values.get("flowCurrentChunkSize", type=int)
+        if self.current_chunk_size is not None and self.current_chunk_size < 0:
+            raise UnsafePathError(
+                f"flowCurrentChunkSize={self.current_chunk_size} is negative"
+            )
+
         # Becomes a filename under the upload root, so directory components are
         # stripped rather than rejected -- flow.js sends a relative path here
         # when a folder is dropped in, and those are flattened by design.
         self.filename = safe_filename(
-            request.form.get("flowFilename", default="", type=str),
+            values.get("flowFilename", default="", type=str),
             field="flowFilename",
         )
 
@@ -76,7 +106,7 @@ class RequestData:
         # Made of the file size and file name (with relative path, if available).
         # Becomes a directory name, so it must be a single safe segment.
         self.unique_identifier = safe_segment(
-            request.form.get("flowIdentifier", default="", type=str),
+            values.get("flowIdentifier", default="", type=str),
             field="flowIdentifier",
         )
 
@@ -84,7 +114,7 @@ class RequestData:
         # included; the path is relative to the chosen folder. Sanitised the
         # same way as flowFilename because HttpRequestHandler subclasses can
         # read it, even though this class does not use it itself.
-        relative_path = request.form.get("flowRelativePath", default="", type=str)
+        relative_path = values.get("flowRelativePath", default="", type=str)
         self.relative_path = (
             safe_filename(relative_path, field="flowRelativePath")
             if relative_path
@@ -93,16 +123,16 @@ class RequestData:
 
         # Get the chunk data.
         # Type of `chunk_data`: werkzeug.datastructures.FileStorage
-        self.chunk_data = request.files["file"]
+        self.chunk_data = request.files["file"] if require_file else None
 
         # Becomes a directory name directly under the upload root. This is the
         # field the published CVE-2026-38360 exploit used.
-        upload_id = request.form.get("upload_id", default="", type=str)
+        upload_id = values.get("upload_id", default="", type=str)
         self.upload_id = safe_segment(upload_id, field="upload_id") if upload_id else ""
 
     @staticmethod
-    def _get_chunk_count(request):
-        n_chunks_total = request.form.get("flowTotalChunks", type=int)
+    def _get_chunk_count(values):
+        n_chunks_total = values.get("flowTotalChunks", type=int)
         if n_chunks_total is None:
             # Upstream left this as None and blew up later with a TypeError
             # deep inside range(); fail here with something diagnosable.
@@ -254,13 +284,52 @@ class BaseHttpRequestHandler:
     def get(self):
         return self._handle(self._get)
 
-    def _get(self):
-        # flow.js uses a GET request to check if it uploaded the file already.
-        # https://github.com/flowjs/flow.js/
-        # TODO: Since testChunks is set to false, this seems to be permanently disabled.
-        #       Should this be removed altogether?
+    def chunk_is_complete(self, chunk_file, lock_file, expected_size):
+        """Whether a chunk found on disk can be trusted and skipped.
 
-        r = RequestData(request)
+        Existence alone is not enough. A server killed mid-write leaves behind
+        a partially written chunk, and trusting it would silently corrupt the
+        reassembled file -- the upload would "succeed" and produce garbage,
+        which is far worse than re-sending a megabyte.
+
+        Two independent checks guard that:
+
+        - a lock file for this chunk means a write was in progress (or crashed
+          part-way), so the chunk is not trustworthy;
+        - the size on disk must match the size the client says the chunk has,
+          which catches a truncated write whose lock file did get cleaned up.
+
+        `flowCurrentChunkSize` is client-supplied, so this is not a security
+        control -- an attacker can always just send a matching chunk. It is a
+        correctness control against interrupted writes.
+        """
+        if lock_file.exists():
+            return False
+        try:
+            actual_size = os.path.getsize(chunk_file)
+        except OSError:
+            return False
+        if expected_size is not None and actual_size != expected_size:
+            return False
+        # With no declared size, fall back to "non-empty": a zero-byte chunk is
+        # the signature of a write that never got started.
+        return actual_size > 0
+
+    def _get(self):
+        # flow.js sends a GET before each chunk when `testChunks` is enabled, to
+        # ask whether that chunk is already on the server. Answering it is what
+        # makes an interrupted upload resumable (upstream #40).
+        #
+        # The response codes are a protocol, not a courtesy:
+        #   200/201/202  -> chunk already uploaded, skip it
+        #   404/413/415/500/501 -> PERMANENT ERROR, flow.js aborts the upload
+        #   anything else -> upload this chunk normally
+        #
+        # Upstream returned 404 for "not here yet", which is in that permanent
+        # error list, so enabling chunk testing would have killed every upload
+        # on its first chunk. 204 No Content is in neither list and is the
+        # conventional answer. See docs/resumable-uploads.md.
+        r = RequestData(request, require_file=False)
 
         upload_session_root = self.get_upload_session_root(r.upload_id)
 
@@ -275,15 +344,15 @@ class BaseHttpRequestHandler:
             temporary_folder_for_file_chunks
             / get_chunk_name(r.filename, r.chunk_number),
         )
-        self.server.logger.debug("Getting chunk: %s", chunk_file)
+        lock_file = temporary_folder_for_file_chunks / f".lock_{r.chunk_number}"
+        self.server.logger.debug("Testing chunk: %s", chunk_file)
 
-        if os.path.isfile(chunk_file):
-            # Let flow.js know this chunk already exists
+        if self.chunk_is_complete(chunk_file, lock_file, r.current_chunk_size):
+            # Let flow.js know this chunk already exists, so it is skipped.
             return "OK"
-        else:
-            # Let flow.js know this chunk does not exists
-            # and needs to be uploaded
-            abort(404, "Not found")
+
+        # Let flow.js know this chunk still needs uploading. Must not be 404.
+        return "", CHUNK_NOT_PRESENT_STATUS
 
     def get_upload_session_root(self, upload_id):
         """Return the directory this request is allowed to write inside.
