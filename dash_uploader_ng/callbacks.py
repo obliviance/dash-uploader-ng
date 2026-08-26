@@ -8,10 +8,49 @@ from dash_uploader_ng.uploadstatus import UploadStatus
 from dash_uploader_ng.utils import dash_version_is_at_least
 
 
+def _normalize_state(state):
+    """Return the user's `state=` argument as a list of dash State objects.
+
+    Accepts None, a single State, or any sequence of them, so that the common
+    single-value case does not have to be wrapped in a list.
+
+    Raises
+    ------
+    TypeError
+        If something that is not a State is passed. Without this the failure
+        surfaces much later as an opaque error from inside Dash's own callback
+        registration, which is hard to trace back to this argument.
+    """
+    if state is None:
+        return []
+    if isinstance(state, State):
+        return [state]
+    try:
+        states = list(state)
+    except TypeError:
+        raise TypeError(
+            f"du.callback(state=...) expects a dash State or a sequence of "
+            f"them, got {type(state).__name__}"
+        ) from None
+    for item in states:
+        if not isinstance(item, State):
+            raise TypeError(
+                f"du.callback(state=...) expects dash State objects, got "
+                f"{type(item).__name__}. Note that Input is not supported here: "
+                f"the upload completing is the only thing that may fire this "
+                f"callback."
+            )
+    return states
+
+
 def _create_dash_callback(callback, settings):  # pylint: disable=redefined-outer-name
     """Wrap the dash callback with the du.settings.
     This function could be used as a wrapper. It will add the
     configurations of dash-uploader to the callback.
+
+    Any extra States the user registered arrive after the six fixed arguments,
+    in the order they were given, and are passed straight through to the
+    user's function after the UploadStatus.
     """
 
     def wrapper(
@@ -21,6 +60,7 @@ def _create_dash_callback(callback, settings):  # pylint: disable=redefined-oute
         uploaded_files_size,
         total_files_size,
         upload_id,
+        *extra_state_values,
     ):
         if not callbackbump:
             raise PreventUpdate()
@@ -43,7 +83,7 @@ def _create_dash_callback(callback, settings):  # pylint: disable=redefined-oute
             total_size_mb=total_files_size,
             upload_id=upload_id,
         )
-        return callback(status)
+        return callback(status, *extra_state_values)
 
     return wrapper
 
@@ -51,6 +91,7 @@ def _create_dash_callback(callback, settings):  # pylint: disable=redefined-oute
 def callback(
     output,
     id="dash-uploader",
+    state=None,
 ):
     """
     Add a callback to dash application.
@@ -59,10 +100,20 @@ def callback(
 
     Parameters
     ----------
-    output: dash Ouput
-        The output dash component
+    output: dash Output, or a list of them
+        The output dash component(s). A list updates several outputs from one
+        upload, in which case the decorated function returns a tuple.
     id: str
         The id of the du.Upload component.
+    state: dash State, a sequence of them, or None
+        Extra values to pass to the callback alongside the UploadStatus, in the
+        order given. Use this to read other parts of your layout at the moment
+        the upload finishes -- which directory to file it under, the logged-in
+        user, a CSRF token.
+
+        Input is deliberately not accepted: the upload completing is the only
+        thing that may fire this callback, and an extra Input would let
+        unrelated interactions re-trigger it with stale upload data.
 
     Example
     -------
@@ -70,11 +121,21 @@ def callback(
        output=Output('callback-output', 'children'),
        id='dash-uploader',
     )
-    def get_a_list(filenames):
-        return html.Ul([html.Li(filenames)])
+    def get_a_list(status):
+        return html.Ul([html.Li(str(x)) for x in status.uploaded_files])
 
+    With extra state and several outputs:
 
+    @du.callback(
+        output=[Output('out', 'children'), Output('log', 'children')],
+        id='dash-uploader',
+        state=[State('target-folder', 'value')],
+    )
+    def on_completion(status, target_folder):
+        shutil.move(status.latest_file, target_folder)
+        return f"Filed under {target_folder}", f"{status.n_uploaded} file(s)"
     """
+    extra_states = _normalize_state(state)
 
     def add_callback(function):
         """
@@ -126,6 +187,10 @@ def callback(
                 State(id, "uploadedFilesSize"),
                 State(id, "totalFilesSize"),
                 State(id, "upload_id"),
+                # The user's extra States come last, so the wrapper's six fixed
+                # positional arguments keep their meaning and the extras land
+                # in *extra_state_values in the order they were given.
+                *extra_states,
             ],
             **kwargs
         )(dash_callback)
