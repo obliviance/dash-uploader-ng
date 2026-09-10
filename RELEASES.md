@@ -17,11 +17,17 @@ Single-bug patch release.
 
 | | |
 | --- | --- |
-| Status | _(fill in when the publish workflow completes)_ |
-| Tag | `v1.2.1` |
-| PyPI | _(pending)_ |
-| Released from | `main` |
+| Status | **Published** |
+| Tag | `v1.2.1` @ `a37b59c` (pushed 2026-09-10) |
+| PyPI | ✅ https://pypi.org/project/dash-uploader-ng/1.2.1/ (wheel + sdist) |
+| Released from | `main` @ `a37b59c` |
+| Gating CI run | [`34518892464`](https://github.com/obliviance/dash-uploader-ng/actions/runs/34518892464) — all jobs green; `stable` fast-forwarded to `a37b59c` automatically |
 | Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+The GitHub Actions problem that blocked `1.2.0` had cleared by the time this
+was tagged: the `Publish to PyPI` workflow ran on the `v1.2.1` tag on the first
+try — tested on 3.10–3.13, ran upstream's browser suite, published via Trusted
+Publishing, and fast-forwarded `stable`.
 
 **Headline:** a resumable upload (`resumable=True`, the default) that was
 interrupted *after* its last chunk landed but before reassembly would, on
