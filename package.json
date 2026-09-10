@@ -1,6 +1,6 @@
 {
   "name": "dash_uploader_ng",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Large file upload component for Dash -- maintained fork of dash-uploader",
   "repository": {
     "type": "git",
@@ -55,5 +55,8 @@
   "engines": {
     "node": ">=16.13.0",
     "npm": ">=8.1.4"
+  },
+  "overrides": {
+    "js-yaml": "^4.3.2"
   }
 }
