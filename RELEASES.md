@@ -11,6 +11,57 @@ Newest first.
 
 ---
 
+## 1.3.0 — 2026-09-10
+
+Drop-in compatibility with upstream `dash-uploader`.
+
+| | |
+| --- | --- |
+| Status | _(fill in when the publish workflow completes)_ |
+| Tag | `v1.3.0` |
+| PyPI | _(pending)_ |
+| Released from | `main` |
+| Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+**Headline:** a line-by-line audit against upstream at `e1a1af4` — every shared
+Python module, JS file and stylesheet — found eleven places the fork had stopped
+being a drop-in replacement. Nine are fixed here. Where a choice existed, the
+option closer to upstream won.
+
+The two that are not reverted are the CSS scoping and the extra root class, and
+they are one decision: un-scoping would deliberately reintroduce `up#91` /
+`up#43`, Bootstrap 4 fragments leaking into `<head>` and restyling the host
+application. Every other finding restores behaviour an app might depend on; that
+one's "behaviour" is damage to unrelated code.
+
+Full write-up: [`docs/upstream-compatibility.md`](docs/upstream-compatibility.md),
+rendered at [`docs/drop-in-audit.html`](docs/drop-in-audit.html).
+
+**Nothing here weakens the CVE-2026-38360 fix.** The relaxed input validation
+was never the security boundary — `ensure_within` is, it was always
+unconditional, and it still is. The published proof of concept and five
+traversal variants were re-run against the relaxed code: all blocked, nothing
+written outside the upload root.
+
+**Verified:**
+
+- 229 headless tests on Python **3.8, 3.9, 3.10, 3.11, 3.12, 3.13** — the floor
+  moved down two versions this release.
+- The same 229 against **dash 1.x** as well as dash 4.x, via a new
+  `Oldest supported dash` CI job, so the restored `dash>=1.1.0` floor is proven
+  rather than asserted.
+- Upstream's Selenium browser suite.
+- Differential suite against the vendored pristine upstream handler, including
+  the new `TestOddButHarmlessIdentifiers` — the `upload_id` values that used to
+  be refused now have to produce the same status, the same bytes, in the same
+  place as upstream.
+- `npm audit` clean; wheel and sdist build and `twine check` clean.
+
+**New in the test suite:** `tests/test_upstream_compatibility.py`, 16 tests
+pinning what a single request/response diff cannot see — subclass hook ordering
+on the failure path, Flask endpoint names, `settings.UPLOAD_FOLDER_ROOT`
+remaining writable, the chunk ceiling, and the default traffic shape.
+
 ## 1.2.1 — 2026-09-10
 
 Single-bug patch release.
