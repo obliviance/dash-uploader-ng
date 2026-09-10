@@ -51,7 +51,11 @@ ROOT_PADDING = ("a", "b", "c", "d")
 
 
 def build(handler_cls, root, use_upload_id=True):
-    server = flask.Flask(f"parity_{handler_cls.__module__}")
+    # The app name must not contain dots: Flask treats it as an import name and
+    # older versions (dash 1.x pins werkzeug<2.1) try to resolve it as a module
+    # when working out the static folder.
+    name = "parity_" + handler_cls.__module__.replace(".", "_")
+    server = flask.Flask(name)
     # Deliberately NOT TESTING=True: that propagates exceptions instead of
     # turning them into responses, and upstream's habit of returning None from
     # a failed view is exactly the behaviour being compared here.

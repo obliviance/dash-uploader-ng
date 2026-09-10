@@ -13,6 +13,7 @@ than the feature that broke it.
 """
 
 import io
+import re
 import tempfile
 
 import flask
@@ -26,7 +27,10 @@ UPLOAD_API = "/API/dash-uploader"
 
 
 def build(root, handler=HttpRequestHandler, upload_api=UPLOAD_API, server=None):
-    server = server or flask.Flask(f"compat_{id(root)}_{upload_api}")
+    # No dots or slashes in a Flask app name -- see the note in
+    # test_upstream_parity.build().
+    name = re.sub(r"\W+", "_", f"compat_{id(root)}_{upload_api}")
+    server = server or flask.Flask(name)
     server.config.update(TESTING=False, PROPAGATE_EXCEPTIONS=False)
     decorate_server(
         server, str(root), upload_api,
