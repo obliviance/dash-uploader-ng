@@ -17,10 +17,11 @@ Drop-in compatibility with upstream `dash-uploader`.
 
 | | |
 | --- | --- |
-| Status | _(fill in when the publish workflow completes)_ |
-| Tag | `v1.3.0` |
-| PyPI | _(pending)_ |
-| Released from | `main` |
+| Status | **Published** |
+| Tag | `v1.3.0` @ `6754d98` (pushed 2026-09-10) |
+| PyPI | ✅ https://pypi.org/project/dash-uploader-ng/1.3.0/ (wheel + sdist) |
+| Released from | `main` @ `6754d98` |
+| Gating CI run | [`34526051362`](https://github.com/obliviance/dash-uploader-ng/actions/runs/34526051362) (main, 10/10 green) and [`34526311075`](https://github.com/obliviance/dash-uploader-ng/actions/runs/34526311075) (publish); `stable` fast-forwarded to `6754d98` automatically |
 | Publish method | PyPI Trusted Publishing (OIDC, no API token) |
 
 **Headline:** a line-by-line audit against upstream at `e1a1af4` — every shared
@@ -61,6 +62,19 @@ written outside the upload root.
 pinning what a single request/response diff cannot see — subclass hook ordering
 on the failure path, Flask endpoint names, `settings.UPLOAD_FOLDER_ROOT`
 remaining writable, the chunk ceiling, and the default traffic shape.
+
+**Post-publish smoke test**, against the wheel actually installed from PyPI in a
+clean virtualenv: version `1.3.0`, `requires_python >=3.8`, `dash>=1.1.0`;
+`resumable` defaults to `False`; endpoints named `get` / `post`; uploads with
+`upload_id` values `user@example.com`, `_private` and `2024-01-15T10:30:00` and
+filenames `.env`, `aux.csv`, `report.csv.` all return 200 and land in the right
+place; 250,000 chunks accepted; the CVE proof of concept still refused with 400
+and nothing written outside the upload root.
+
+**Note on the index:** the per-version PyPI JSON endpoint served `1.3.0`
+immediately, but the simple index that pip reads lagged by a couple of minutes.
+Not a problem, just don't panic at a `No matching distribution found` right
+after a publish.
 
 ## 1.2.1 — 2026-09-10
 
