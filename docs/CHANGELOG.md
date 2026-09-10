@@ -1,5 +1,69 @@
 # Changelog
 
+## 1.3.0 (dash-uploader-ng)
+
+A line-by-line audit against upstream `dash-uploader` at `e1a1af4` found eleven
+places the fork had stopped being a drop-in replacement. Nine are resolved here;
+the other two are kept deliberately and explained. Full write-up in
+[`docs/upstream-compatibility.md`](upstream-compatibility.md).
+
+Nothing here is a new feature. If you are on `dash-uploader` and have been
+waiting to switch, this is the release to switch on.
+
+### Restored to upstream behaviour
+- **`upload_id` accepts what it used to.** The character allow-list rejected
+  values apps really pass — a session e-mail, an ISO timestamp, an id starting
+  with an underscore — as an opaque upload failure. Now only what genuinely
+  cannot be one path component is refused: empty, a path separator, `.`/`..`, a
+  null or control character, or over the filesystem's length limit. Path safety
+  is unaffected: `ensure_within` is the boundary that holds and always ran.
+- **Filenames accept what they used to.** Dotfiles (`.env`), names Windows
+  reserves for devices (`aux.csv`, `nul.txt`), and names ending in a dot or
+  space are legal again, as they were upstream and are on Linux and macOS.
+- **`post_after` / `get_after` run when a request fails.** Upstream's swallowed
+  exception meant they always ran; returning a real error response had skipped
+  them. Subclasses use these hooks for cleanup, audit logging and lock release.
+- **`settings.UPLOAD_FOLDER_ROOT` is writable again.** Assigning to it after
+  `configure_upload()` redirects the paths `du.callback` reports, as upstream
+  did — the only workaround for `up#17`. It had become a silent no-op.
+- **Flask endpoint names.** The first uploader registers under `get` / `post`
+  again, so `app.view_functions["post"]`, `url_for("post")` and CSRF exemptions
+  written against upstream keep working. Only a second `configure_upload()`
+  falls back to names derived from its API path.
+- **`resumable` is off by default**, matching upstream's hard-coded
+  `testChunks: false`. Enabling it adds one `GET` per chunk — about a thousand
+  for a 1 GB upload — which a proxy or WAF tuned against upstream never
+  expected. Opt in with `du.Upload(resumable=True)`.
+- **Python floor lowered to 3.8** (was 3.10; upstream declared none). The only
+  blocker was `Path.is_relative_to`, replaced with an equivalent that predates
+  3.9.
+- **Dash floor restored to `>=1.1.0`** (was `>=2.0`), upstream's own value,
+  verified on dash 1.21 and 4.x and now covered by a CI job. Note dash 1.x
+  itself requires `werkzeug<2.1`.
+- **The chunk-count ceiling is 100× higher** — 10,000,000 rather than 100,000,
+  or roughly 10 TB at the default chunk size. The old ceiling was reachable by
+  raising `max_file_size` or lowering `chunk_size`. Reassembly now builds chunk
+  paths lazily.
+
+### Kept, deliberately
+- **The bundled CSS stays scoped** beneath `.dash-uploader-root`, and the root
+  element keeps that extra class. Un-scoping would mean reintroducing
+  `up#91` / `up#43`: fragments of Bootstrap 4 leaking into `<head>` and
+  restyling the host application's own buttons and progress bars. All 241 rules
+  are preserved verbatim, so the component renders identically. If your app was
+  inheriting that styling, import Bootstrap properly.
+
+### Added
+- `safepath.STRICT_SEGMENTS` — set it to `True` to restore the narrow
+  allow-list, for deployments needing Windows portability guarantees or doing
+  server-side extension validation.
+- `tests/test_upstream_compatibility.py` — 16 tests pinning the behaviours
+  above, so they cannot drift again silently.
+
+### Tests
+229 headless tests, plus upstream's Selenium suite, green on Python 3.8–3.13
+and against both dash 1.x and 4.x.
+
 ## 1.2.1 (dash-uploader-ng)
 
 A single-bug patch release. `1.2.0` was tagged but never reached PyPI (the

@@ -746,7 +746,7 @@ Upload_ReactComponent.defaultProps = {
     maxFileSize: 1024 * 1024 * 10,
     chunkSize: 1024 * 1024,
     simultaneousUploads: 1,
-    resumable: true,
+    resumable: false,
     service: '/API/dash-uploader',
     className: 'dash-uploader-default',
     hoveredClass: 'dash-uploader-hovered',

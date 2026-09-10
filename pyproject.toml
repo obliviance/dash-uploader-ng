@@ -1,16 +1,16 @@
 [build-system]
 # setuptools>=77 is required for the PEP 639 SPDX `license` / `license-files`
 # fields used below. This only constrains the *build* environment, not the
-# runtime -- installing the built wheel still works on Python 3.10+.
+# runtime -- installing the built wheel still works on Python 3.8+.
 requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "dash-uploader-ng"
-version = "1.2.1"
+version = "1.3.0"
 description = "Large file upload component for Dash -- a maintained, security-patched fork of dash-uploader"
 readme = "docs/README-PyPi.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 # PEP 639: SPDX expression + explicit license files. Replaces the deprecated
 # `license = {text = ...}` table and the "License :: OSI Approved" classifier.
 license = "MIT"
@@ -37,6 +37,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -44,9 +46,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    # dash>=2.0 is the first line that dropped Python 2 and settled the
-    # component/callback API this package builds on. Verified against dash 4.x.
-    "dash>=2.0",
+    # Upstream dash-uploader's floor, kept deliberately: the fork is verified
+    # working on dash 1.21 as well as 4.x, and raising it would turn a drop-in
+    # replacement into an upgrade. Note dash 1.x itself requires werkzeug<2.1.
+    "dash>=1.1.0",
     # packaging is used by utils.py for the dash version comparison.
     "packaging>=21.0",
 ]

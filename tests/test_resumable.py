@@ -323,12 +323,17 @@ class TestResumeAssemblesTheFile:
 
 
 class TestTheResumableProp:
-    def test_defaults_to_enabled(self):
+    def test_defaults_to_disabled(self):
+        """Off by default so the traffic matches upstream dash-uploader.
+
+        Upstream hard-coded flow.js's `testChunks` to false, so an app swapping
+        the import sees no new requests to its upload endpoint until it opts in.
+        """
         import dash_uploader_ng as du
 
-        assert du.Upload(id="u").resumable is True
+        assert du.Upload(id="u").resumable is False
 
-    def test_can_be_switched_off(self):
+    def test_can_be_switched_on(self):
         import dash_uploader_ng as du
 
-        assert du.Upload(id="u", resumable=False).resumable is False
+        assert du.Upload(id="u", resumable=True).resumable is True

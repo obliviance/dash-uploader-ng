@@ -17,9 +17,10 @@ The defence is deliberately two layers, because each one alone has a blind
 spot:
 
 1. **Reject the component up front.** :func:`safe_segment` and
-   :func:`safe_filename` require each piece to be a single, boring path
-   segment. This is the layer that stops the attack at the door and produces a
-   useful error, and it is the layer the tests pin exact behaviour against.
+   :func:`safe_filename` refuse anything that cannot be one path component --
+   empty, a separator, ``.``/``..``, a null or control character, or too long
+   for the filesystem. This layer stops the attack at the door and produces a
+   useful 400 instead of a mystery.
 
 2. **Re-check the resolved path before writing.** :func:`ensure_within`
    resolves both the upload root and the candidate path and refuses anything
@@ -28,23 +29,57 @@ spot:
    normalisation, or a future refactor that assembles a path some other way and
    forgets to sanitise an input.
 
-Layer 2 is the one that actually has to hold. Layer 1 is what makes the failure
-mode a clear 400 instead of a mystery.
+**Layer 2 is the one that actually has to hold**, and it is unconditional. That
+is why layer 1 does not need a narrow character allow-list: an earlier version
+of this module required ``[A-Za-z0-9._-]``, which bought no additional safety
+over ``ensure_within`` and rejected a great deal of traffic upstream accepted --
+``upload_id`` values derived from an e-mail address or an ISO timestamp,
+filenames like ``.env`` or ``aux.csv``. That allow-list is still available as
+:data:`STRICT_SEGMENTS` for deployments that want the portability guarantees.
 """
 
 import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 __all__ = [
+    "STRICT_SEGMENTS",
     "UnsafePathError",
     "ensure_within",
     "safe_filename",
     "safe_segment",
 ]
 
-# A path segment we are willing to create on disk. Leading character must be
-# alphanumeric, which is what rules out "..", "." and dotfiles in one go.
-_SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+# Characters that can never appear in a single path component, on any platform
+# this runs on or is served from. Everything else is allowed: upstream accepted
+# any string at all here, and the values apps really pass -- session e-mails,
+# ISO timestamps, ids beginning with an underscore -- are harmless once they
+# cannot escape the upload root. See STRICT_SEGMENTS below for the stricter
+# alternative and why it is not the default.
+_PATH_SEPARATORS = ("/", "\\")
+
+# The narrow allow-list this module used to enforce unconditionally. Kept
+# because it is the right rule for a deployment that also wants portability
+# guarantees, but it is opt-in: it rejected a lot of traffic upstream accepted
+# (see docs/upstream-compatibility.md).
+_STRICT_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+#: When True, ``safe_segment`` and ``safe_filename`` additionally require the
+#: narrow ``[A-Za-z0-9._-]`` allow-list, reject dotfiles, reject names Windows
+#: reserves for devices (``con``, ``nul``, ``aux``, ``com1`` ...) and reject
+#: names ending in a dot or space (which Windows silently strips).
+#:
+#: The default is False, which matches upstream dash-uploader: anything that is
+#: not a path separator, a traversal component or a control character is
+#: accepted. Path safety does not depend on this flag -- :func:`ensure_within`
+#: is the boundary that actually holds, and it is always applied.
+#:
+#: Turn it on if your uploads are consumed on Windows, or if a custom
+#: ``http_request_handler`` validates file extensions server-side (a trailing
+#: dot can slip past such a check on Windows)::
+#:
+#:     import dash_uploader_ng.safepath as safepath
+#:     safepath.STRICT_SEGMENTS = True
+STRICT_SEGMENTS = False
 
 # ext4, APFS, NTFS and friends all cap a single path component at 255 *bytes*.
 # Measuring characters instead is wrong in both directions: it rejects
@@ -55,8 +90,9 @@ _MAX_SEGMENT_BYTES = 255
 
 # A filename additionally has "_part_<n>" appended to form each chunk file, so
 # it needs headroom or a maximum-length upload dies on its first chunk write.
-# MAX_CHUNKS is 100000, so the longest suffix is "_part_100000" -- 12 bytes.
-_CHUNK_SUFFIX_BYTES = len("_part_") + 6
+# MAX_CHUNKS is 10_000_000, so the longest suffix is "_part_10000000" -- 14
+# bytes. Kept in step with httprequesthandler.MAX_CHUNKS by a test.
+_CHUNK_SUFFIX_BYTES = len("_part_") + 8
 _MAX_FILENAME_BYTES = _MAX_SEGMENT_BYTES - _CHUNK_SUFFIX_BYTES
 
 # Windows refuses to create these names in any directory, with or without an
@@ -86,7 +122,12 @@ def _reject(field, value, reason):
 
 
 def _check_common(field, value, max_bytes=_MAX_SEGMENT_BYTES):
-    """Checks that apply to any single path component."""
+    """Checks that apply to any single path component.
+
+    These are the unconditional ones: a component that fails any of them either
+    cannot be written to disk at all, or is a traversal primitive. The
+    portability rules live in :func:`_check_strict` and are opt-in.
+    """
     if not value:
         _reject(field, value, "empty")
     if "\x00" in value:
@@ -101,6 +142,16 @@ def _check_common(field, value, max_bytes=_MAX_SEGMENT_BYTES):
             f"is {encoded_length} bytes, over the {max_bytes}-byte limit for "
             "one path component",
         )
+    # "." and ".." are the traversal primitives themselves; no amount of
+    # permissiveness makes them acceptable as a directory or file name.
+    if value in (".", ".."):
+        _reject(field, value, "is a path traversal component")
+    if STRICT_SEGMENTS:
+        _check_strict(field, value)
+
+
+def _check_strict(field, value):
+    """The portability rules, applied only when ``STRICT_SEGMENTS`` is on."""
     # Windows silently strips trailing dots and spaces, so "evil.py." and
     # "evil.py " both resolve to "evil.py" there -- enough to slip past any
     # extension check a caller layers on top of this.
@@ -108,31 +159,44 @@ def _check_common(field, value, max_bytes=_MAX_SEGMENT_BYTES):
         _reject(field, value, "ends with a dot or space")
     if value.split(".", 1)[0].lower() in _WINDOWS_RESERVED:
         _reject(field, value, "is a reserved device name on Windows")
-
-
-def safe_segment(value, field):
-    """Return ``value`` if it is safe to use as one directory/file name.
-
-    Used for ``upload_id`` and ``flowIdentifier``, both of which name a
-    directory that gets created under the upload root. The accepted character
-    set is intentionally narrow -- alphanumerics, dot, dash, underscore, and an
-    alphanumeric first character -- because both fields are machine-generated
-    in normal use (a uuid, and flow.js's ``size-scrubbedname``), so there is no
-    legitimate traffic being turned away by being strict here.
-
-    Raises
-    ------
-    UnsafePathError
-        If ``value`` is not a single, safe path segment.
-    """
-    _check_common(field, value)
-    if not _SAFE_SEGMENT.match(value):
+    if value.startswith("."):
+        _reject(field, value, "resolves to a dotfile")
+    if not _STRICT_SEGMENT.match(value):
         _reject(
             field,
             value,
             "must be a single path segment of [A-Za-z0-9._-] starting with an "
             "alphanumeric",
         )
+
+
+def safe_segment(value, field):
+    """Return ``value`` if it is safe to use as one directory/file name.
+
+    Used for ``upload_id`` and ``flowIdentifier``, both of which name a
+    directory created under the upload root.
+
+    ``upload_id`` is a *public parameter* of ``du.Upload()`` and apps routinely
+    derive it from session data -- an e-mail address, an ISO timestamp, a name
+    with a space in it. A narrow allow-list turned all of those into an opaque
+    upload failure that upstream did not have, so what is rejected here is only
+    what genuinely cannot be one path component: something empty, a path
+    separator, ``.``/``..``, a null or control character, or a name too long
+    for the filesystem. Set :data:`STRICT_SEGMENTS` to restore the allow-list.
+
+    This is deliberately not the security boundary. :func:`ensure_within` is,
+    and it runs on every path this module hands out regardless of this
+    function's verdict.
+
+    Raises
+    ------
+    UnsafePathError
+        If ``value`` cannot be used as a single path segment.
+    """
+    _check_common(field, value)
+    for separator in _PATH_SEPARATORS:
+        if separator in value:
+            _reject(field, value, "contains a path separator")
     return value
 
 
@@ -155,6 +219,12 @@ def safe_filename(value, field):
     empty string. Stripping separators and validating the remainder keeps
     real-world filenames intact.
 
+    Beyond the separator strip, what is refused is only what cannot be written:
+    an empty name, ``.``/``..``, null or control characters, or a name too long
+    for the filesystem once ``_part_<n>`` is appended. Names that are merely
+    awkward -- ``.env``, ``aux.csv``, ``report.csv.`` -- are accepted, as they
+    were upstream. Set :data:`STRICT_SEGMENTS` to refuse them.
+
     Raises
     ------
     UnsafePathError
@@ -173,14 +243,8 @@ def safe_filename(value, field):
     # Stricter than a bare segment: room is reserved for the "_part_<n>" that
     # every chunk file appends.
     _check_common(field, name, max_bytes=_MAX_FILENAME_BYTES)
-    if name in (".", ".."):
-        _reject(field, value, "is a path traversal component")
-    if not _SAFE_SEGMENT.match(name):
-        # The regex is ASCII-only by design, so re-check the residual risks
-        # explicitly rather than rejecting every non-ASCII filename.
-        if name.startswith("."):
-            _reject(field, value, "resolves to a dotfile")
-        if "/" in name or "\\" in name:
+    for separator in _PATH_SEPARATORS:
+        if separator in name:
             _reject(field, value, "still contains a path separator")
     return name
 
@@ -200,11 +264,15 @@ def ensure_within(root, candidate):
     root_resolved = Path(root).resolve()
     candidate_resolved = Path(candidate).resolve()
 
-    if candidate_resolved != root_resolved and not candidate_resolved.is_relative_to(
-        root_resolved
-    ):
+    # `Path.relative_to` rather than `Path.is_relative_to`: the latter is 3.9+,
+    # and this package supports older interpreters. `relative_to` has the same
+    # semantics here (it returns "." for the root itself) and raises ValueError
+    # for anything outside.
+    try:
+        candidate_resolved.relative_to(root_resolved)
+    except ValueError:
         raise UnsafePathError(
             f"resolved path {str(candidate_resolved)!r} escapes the upload root "
             f"{str(root_resolved)!r}"
-        )
+        ) from None
     return candidate_resolved

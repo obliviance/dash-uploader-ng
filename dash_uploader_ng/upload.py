@@ -57,7 +57,7 @@ def Upload(
     default_style=None,
     upload_id=None,
     max_files=1,
-    resumable=True,
+    resumable=False,
 ):
     """
     du.Upload component
@@ -109,14 +109,17 @@ def Upload(
         The upload id, created with uuid.uuid1() or uuid.uuid4(),
         for example. If none, creates random session id with
         uuid.uuid1().
-    resumable: bool (default: True)
+    resumable: bool (default: False)
         If True, the client asks the server whether each chunk is already
         present before sending it, so an upload interrupted by a network drop,
         a browser crash or a server restart picks up where it left off instead
         of starting again from zero.
 
-        The cost is one small extra request per chunk. Set to False to trade
-        resumability for fewer requests.
+        The cost is one extra GET request per chunk -- about a thousand of them
+        for a 1 GB upload at the default chunk size. Off by default so that the
+        traffic this component generates matches upstream dash-uploader
+        exactly; a proxy, WAF or rate limiter tuned for upstream will not see
+        anything new until you opt in.
 
         Note: resuming across a *page reload* additionally requires a stable
         `upload_id`. The default is a fresh `uuid.uuid1()` per component, so a

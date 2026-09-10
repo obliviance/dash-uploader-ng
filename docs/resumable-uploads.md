@@ -1,14 +1,27 @@
 # Resumable uploads
 
 An upload interrupted by a network drop, a browser crash or a server restart
-picks up where it left off instead of starting again from zero.
+can pick up where it left off instead of starting again from zero.
 
-This is on by default:
+This is **off by default** — turn it on per component:
 
 ```python
-du.Upload(id="uploader")                    # resumable
-du.Upload(id="uploader", resumable=False)   # not resumable
+du.Upload(id="uploader")                   # not resumable (upstream behaviour)
+du.Upload(id="uploader", resumable=True)   # resumable
 ```
+
+## Why it is off by default
+
+Upstream dash-uploader hard-coded flow.js's `testChunks` to `false`, so
+switching it on changes the traffic an app generates: one extra `GET` to the
+upload endpoint per chunk, roughly a thousand of them for a 1 GB upload at the
+default chunk size. A reverse proxy, WAF or rate limiter tuned against upstream
+would suddenly see requests it was never configured for, and the failure would
+look like a broken upload rather than a policy hit.
+
+Defaulting to off keeps `dash-uploader-ng` a drop-in replacement: swapping the
+import changes nothing about what reaches your server. Opt in when you want the
+feature, having checked that a `GET` to the upload path is allowed.
 
 ## Why it was broken
 
