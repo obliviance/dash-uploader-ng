@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from dash_uploader_ng import safepath
 from dash_uploader_ng.safepath import (
     UnsafePathError,
     ensure_within,
@@ -47,19 +48,46 @@ class TestSafeSegment:
             "C:\\windows",
             "a/b",
             "a\\b",
-            ".hidden",
             "",
-            "with space",
             "sub\x00dir",
             "line\nbreak",
-            "trailing.",
-            "trailing ",
-            "CON",
-            "nul.txt",
             "x" * 256,
         ],
     )
-    def test_rejects_anything_that_is_not_one_boring_segment(self, value):
+    def test_rejects_anything_that_cannot_be_one_path_component(self, value):
+        with pytest.raises(UnsafePathError):
+            safe_segment(value, field="upload_id")
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "user@example.com",   # session e-mail
+            "2024-01-15T10:30:00",  # ISO timestamp
+            "_private",           # leading underscore
+            "user+tag",
+            "my session",
+            "sess:42",
+            "caf\u00e9",
+            "session.",
+            ".hidden",
+            "CON",
+            "nul.txt",
+        ],
+    )
+    def test_accepts_what_upstream_accepted(self, value):
+        """Only traversal and un-writable components are refused.
+
+        `ensure_within` is the boundary that holds; a narrow character
+        allow-list here bought nothing and rejected a great deal of traffic
+        that upstream dash-uploader handled. See STRICT_SEGMENTS.
+        """
+        assert safe_segment(value, field="upload_id") == value
+
+    @pytest.mark.parametrize(
+        "value", ["my session", "sess:42", "caf\u00e9", ".hidden", "session.", "CON"]
+    )
+    def test_strict_mode_restores_the_allow_list(self, value, monkeypatch):
+        monkeypatch.setattr(safepath, "STRICT_SEGMENTS", True)
         with pytest.raises(UnsafePathError):
             safe_segment(value, field="upload_id")
 
@@ -110,17 +138,41 @@ class TestSafeFilename:
             ".",
             "../..",
             "subdir/..",
-            ".bashrc",
-            "sub/.ssh",
             "evil\x00.csv",
             "evil\n.csv",
-            "report.csv.",  # Windows strips the trailing dot -> "report.csv"
-            "report.csv ",
-            "CON.txt",
-            "x" * 244,
+            "x" * 242,
         ],
     )
     def test_rejects_names_with_nothing_safe_left(self, value):
+        with pytest.raises(UnsafePathError):
+            safe_filename(value, field="flowFilename")
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (".bashrc", ".bashrc"),
+            ("sub/.ssh", ".ssh"),
+            ("report.csv.", "report.csv."),
+            ("report.csv ", "report.csv "),
+            ("CON.txt", "CON.txt"),
+            ("aux.csv", "aux.csv"),
+            (".env", ".env"),
+        ],
+    )
+    def test_accepts_awkward_names_upstream_accepted(self, value, expected):
+        """Dotfiles, Windows device names and trailing dots are legal here.
+
+        They are legal filenames on the platforms this normally runs on, and
+        upstream wrote them without complaint. STRICT_SEGMENTS refuses them for
+        deployments that need Windows portability.
+        """
+        assert safe_filename(value, field="flowFilename") == expected
+
+    @pytest.mark.parametrize(
+        "value", [".bashrc", "report.csv.", "report.csv ", "CON.txt", "aux.csv"]
+    )
+    def test_strict_mode_refuses_them(self, value, monkeypatch):
+        monkeypatch.setattr(safepath, "STRICT_SEGMENTS", True)
         with pytest.raises(UnsafePathError):
             safe_filename(value, field="flowFilename")
 
@@ -135,17 +187,17 @@ class TestLengthLimitsAreInBytes:
     """
 
     def test_a_long_ascii_filename_is_accepted(self):
-        # 243 bytes: the most that still leaves room for "_part_100000".
-        name = "x" * 239 + ".csv"
+        # 241 bytes: the most that still leaves room for "_part_10000000".
+        name = "x" * 237 + ".csv"
         assert safe_filename(name, field="flowFilename") == name
 
     def test_a_filename_with_no_room_for_the_chunk_suffix_is_rejected(self):
         with pytest.raises(UnsafePathError, match="bytes"):
-            safe_filename("x" * 244, field="flowFilename")
+            safe_filename("x" * 242, field="flowFilename")
 
     def test_a_multibyte_filename_is_measured_in_bytes(self):
         # 80 CJK characters is only 80 characters but 240 bytes; with ".csv"
-        # that is 244, one past the limit.
+        # that is 244, past the limit.
         with pytest.raises(UnsafePathError, match="bytes"):
             safe_filename("報" * 80 + ".csv", field="flowFilename")
 
@@ -167,7 +219,7 @@ class TestLengthLimitsAreInBytes:
         """The limit has to be justified by the filesystem actually accepting it."""
         from dash_uploader_ng.httprequesthandler import MAX_CHUNKS, get_chunk_name
 
-        name = safe_filename("x" * 239 + ".csv", field="flowFilename")
+        name = safe_filename("x" * 237 + ".csv", field="flowFilename")
         chunk_name = get_chunk_name(name, MAX_CHUNKS)
         # Would raise OSError("File name too long") if the budget were wrong.
         (tmp_path / chunk_name).write_bytes(b"x")

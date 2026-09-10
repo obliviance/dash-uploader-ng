@@ -69,7 +69,15 @@ def _create_dash_callback(callback, settings, component_id=None):  # pylint: dis
         if uploaded_filenames is not None:
             # Resolve the folder for *this* component, so a second uploader
             # reports paths under its own destination (upstream #124, #127).
-            upload_folder_root = settings.get_config(component_id).upload_folder_root
+            #
+            # A component covered only by the default configuration reads the
+            # module global instead, because assigning to
+            # `settings.UPLOAD_FOLDER_ROOT` after configure_upload() is how
+            # apps redirect the reported paths at runtime -- upstream read that
+            # global here, and it is the only workaround anyone has for
+            # upstream #17. Named configurations are not reachable that way and
+            # take their own value.
+            upload_folder_root = settings.upload_folder_root_for(component_id)
             if upload_id:
                 root_folder = Path(upload_folder_root) / upload_id
             else:

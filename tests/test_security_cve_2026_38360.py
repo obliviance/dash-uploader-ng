@@ -152,10 +152,12 @@ class TestTheExploit:
         [
             ("upload_id", ".."),
             ("upload_id", "."),
-            ("upload_id", ".hidden"),
+            ("upload_id", "../.."),
+            ("upload_id", "a/b"),
+            ("upload_id", "a\\b"),
             ("flowIdentifier", ".."),
+            ("flowIdentifier", "."),
             ("flowFilename", ".."),
-            ("flowFilename", ".bashrc"),
             ("flowFilename", ""),
         ],
     )

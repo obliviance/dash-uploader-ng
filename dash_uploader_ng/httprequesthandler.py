@@ -18,11 +18,15 @@ from dash_uploader_ng.utils import retry
 
 logger = logging.getLogger(__name__)
 
-# Guard against a client claiming an absurd chunk count: the completeness check
-# below materialises one path per chunk, so an unbounded value is an easy way to
-# make the server allocate a very large list on an unauthenticated request. At
-# the 1 MB default chunk size this still allows a ~100 GB upload.
-MAX_CHUNKS = 100_000
+# Sanity bound on a client-claimed chunk count. Upstream had none, and nothing
+# below materialises a per-chunk collection any more -- the completeness check
+# and the reassembly both stream -- so this exists only to keep `range()` from
+# being handed something absurd, and is set far above any real upload: 10
+# million chunks is a 10 TB file at the 1 MB default chunk size.
+#
+# It was 100_000 (~100 GB), which a deployment that raised `max_file_size` or
+# lowered `chunk_size` could genuinely hit and be refused for.
+MAX_CHUNKS = 10_000_000
 
 # Answer to flow.js's chunk-test GET meaning "not uploaded yet, send it".
 #
@@ -285,10 +289,12 @@ class BaseHttpRequestHandler:
                 )
             time.sleep(1)
 
-        chunk_paths = [
+        # A generator, not a list: at MAX_CHUNKS this would otherwise be a very
+        # large collection of strings held for the duration of the copy.
+        chunk_paths = (
             os.path.join(chunk_folder, get_chunk_name(filename, x))
             for x in range(1, n_chunks_total + 1)
-        ]
+        )
 
         # Make sure some other request didn't trigger file reconstruction.
         target_file_name = ensure_within(
@@ -448,9 +454,12 @@ class HttpRequestHandler(BaseHttpRequestHandler):
     # and flask.session inside the methods of this
     # class when needed.
     #
-    # Note: unlike upstream, a failing request now propagates as an HTTP error
-    # response, so `post_after`/`get_after` run on success only. Override
-    # `post`/`get` directly if you need a hook that also fires on failure.
+    # `post_after` / `get_after` run whether the request succeeded or failed.
+    # That matches upstream, where a failing `_post` was swallowed into a None
+    # return and the `post_after()` line still executed -- so subclasses using
+    # these hooks for cleanup, audit logging, metrics or releasing a lock keep
+    # working. Here the failure is a real HTTP error response rather than an
+    # accidental one, so the hook runs from a `finally`.
     def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
         super().__init__(*args, **kwargs)
 
@@ -459,9 +468,10 @@ class HttpRequestHandler(BaseHttpRequestHandler):
 
     def post(self):
         self.post_before()
-        returnvalue = super().post()
-        self.post_after()
-        return returnvalue
+        try:
+            return super().post()
+        finally:
+            self.post_after()
 
     def post_after(self):
         pass
@@ -471,9 +481,10 @@ class HttpRequestHandler(BaseHttpRequestHandler):
 
     def get(self):
         self.get_before()
-        returnvalue = super().get()
-        self.get_after()
-        return returnvalue
+        try:
+            return super().get()
+        finally:
+            self.get_after()
 
     def get_after(self):
         pass

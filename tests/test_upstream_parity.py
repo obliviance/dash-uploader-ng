@@ -309,7 +309,7 @@ class TestMalformedRequestsDivergeOnPurpose:
             # hang for minutes on a single unauthenticated request -- which is
             # precisely the DoS the cap exists to prevent, but it also hangs
             # the test run, so it is demonstrated rather than reproduced.
-            ("flowTotalChunks over the cap", {"flowTotalChunks": "100001"}),
+            ("flowTotalChunks over the cap", {"flowTotalChunks": "10000001"}),
             ("chunk number out of range", {"chunk": 5, "chunks": 2}),
             ("empty filename", {"flowFilename": ""}),
         ],
@@ -327,37 +327,63 @@ class TestMalformedRequestsDivergeOnPurpose:
         )
 
 
-class TestKnownIntentionalNarrowing:
-    """upload_ids upstream accepted that the fork now refuses.
+class TestOddButHarmlessIdentifiers:
+    """upload_ids that are unusual but not attacks.
 
-    This is the one place the fork is deliberately *stricter* about input that
-    was not itself an attack. It is pinned here so the trade-off is explicit
-    and discoverable rather than a surprise 400 in someone's app.
+    An earlier version of this fork refused all of these. None of them is a
+    traversal -- each names one directory directly under the upload root -- and
+    `upload_id` is a public parameter that apps derive from session data, so
+    refusing them broke working applications for no security gain. They are
+    pinned here as parity: the fork must accept what upstream accepted, and put
+    the bytes in the same place.
 
-    All of these are still refused, because allowing "harmless" oddities means
-    hand-reasoning about which oddities compose into a traversal on which
-    filesystem. Applications that need them should map their own identifier
-    onto a plain one before handing it to du.Upload(upload_id=...).
+    `safepath.STRICT_SEGMENTS` restores the old allow-list for deployments that
+    want it; `TestStrictModeIsAvailable` covers that.
     """
 
     @pytest.mark.parametrize(
         "upload_id",
         [
-            "my session",       # space
-            "session:42",       # colon (an ADS separator on NTFS)
-            "café",             # non-ascii
-            ".hidden",          # leading dot
-            "session.",         # trailing dot (stripped by Windows)
+            "user@example.com",     # a session e-mail
+            "2024-01-15T10:30:00",  # an ISO timestamp
+            "_private",             # leading underscore
+            "user+tag",
+            "my session",           # space
+            "session:42",           # colon
+            "café",                 # non-ascii
+            ".hidden",              # leading dot
+            "session.",             # trailing dot
         ],
     )
-    def test_upstream_accepted_these_and_the_fork_refuses_them(self, pair, upload_id):
+    def test_the_fork_accepts_them_exactly_as_upstream_did(self, pair, upload_id):
         clients, roots, sandboxes = pair()
 
-        upstream_status = send(clients["upstream"], b"x", upload_id=upload_id).status_code
-        fork_status = send(clients["fork"], b"x", upload_id=upload_id).status_code
+        upstream = send(clients["upstream"], b"x", upload_id=upload_id)
+        fork = send(clients["fork"], b"x", upload_id=upload_id)
 
-        assert upstream_status == 200
-        assert fork_status == 400
-        # Nothing was written by the fork, inside or outside the root.
-        assert tree(roots["fork"]) == []
+        assert upstream.status_code == 200
+        assert fork.status_code == 200
+        # Same status, same bytes, same place -- and still inside the root.
+        assert tree(roots["fork"]) == tree(roots["upstream"])
         assert escaped(sandboxes["fork"], roots["fork"]) == []
+
+
+class TestStrictModeIsAvailable:
+    """The narrow allow-list is still one assignment away."""
+
+    def test_strict_segments_refuses_them_again(self, pair, monkeypatch):
+        from dash_uploader_ng import safepath
+
+        monkeypatch.setattr(safepath, "STRICT_SEGMENTS", True)
+        clients, roots, sandboxes = pair()
+
+        assert send(clients["fork"], b"x", upload_id="my session").status_code == 400
+        assert tree(roots["fork"]) == []
+
+    def test_strict_mode_does_not_affect_ordinary_ids(self, pair, monkeypatch):
+        from dash_uploader_ng import safepath
+
+        monkeypatch.setattr(safepath, "STRICT_SEGMENTS", True)
+        clients, roots, _ = pair()
+
+        assert send(clients["fork"], b"x", upload_id="sess-01").status_code == 200

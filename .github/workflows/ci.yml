@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -42,6 +42,29 @@ jobs:
       # Path-safety unit tests, the CVE-2026-38360 end-to-end tests, and the
       # differential tests against the vendored upstream handler.
       - run: python -m pytest
+
+  oldest-supported:
+    name: Oldest supported dash (1.x)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      # pyproject declares dash>=1.1.0 to stay a drop-in replacement for
+      # upstream. This job is what keeps that floor honest rather than
+      # aspirational. dash 1.x predates werkzeug 2.1, hence the pins.
+      - run: |
+          python -m pip install --upgrade "dash>=1.1,<2" "werkzeug<2.1" \
+            "flask<2.2" pyyaml pytest typing_extensions
+      - run: npm ci && npm run build
+      # The browser suite needs dash[testing], which would drag dash forward.
+      - run: python -m pytest --ignore=tests/browser
 
   browser-test:
     name: Upstream browser suite

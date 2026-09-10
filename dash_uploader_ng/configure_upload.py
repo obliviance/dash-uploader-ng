@@ -25,17 +25,27 @@ def _as_component_ids(upload_component_ids):
     return ids
 
 
-def _endpoint_name(upload_api):
-    """A Flask endpoint name unique to this upload API path.
+def _endpoint_names(server, upload_api):
+    """The Flask endpoint names to register the GET and POST views under.
 
     Upstream passed `None`, letting Flask derive the endpoint from the view
     function's name -- which is `get`/`post` for every handler instance. A
     second `configure_upload()` therefore died with "View function mapping is
     overwriting an existing endpoint function: get", the immediate cause of
     upstream #27, #124 and #127.
+
+    So the first uploader on a server keeps upstream's `get` / `post` names,
+    and only a second one falls back to names derived from its API path. That
+    keeps `app.view_functions["post"]`, `url_for("post")` and CSRF exemptions
+    written against upstream working in the single-uploader case -- which is
+    every app that could have worked upstream at all -- while still making more
+    than one uploader possible.
     """
+    if not any(name in server.view_functions for name in ("get", "post")):
+        return "get", "post"
+
     slug = "".join(c if c.isalnum() else "_" for c in upload_api).strip("_")
-    return f"dash_uploader_ng_{slug}"
+    return f"dash_uploader_ng_{slug}_get", f"dash_uploader_ng_{slug}_post"
 
 
 def configure_upload(
@@ -185,6 +195,6 @@ def decorate_server(
             "when configuring more than one uploader."
         )
 
-    endpoint = _endpoint_name(upload_api)
-    server.add_url_rule(upload_api, f"{endpoint}_get", handler.get, methods=["GET"])
-    server.add_url_rule(upload_api, f"{endpoint}_post", handler.post, methods=["POST"])
+    get_endpoint, post_endpoint = _endpoint_names(server, upload_api)
+    server.add_url_rule(upload_api, get_endpoint, handler.get, methods=["GET"])
+    server.add_url_rule(upload_api, post_endpoint, handler.post, methods=["POST"])

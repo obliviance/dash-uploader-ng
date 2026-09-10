@@ -106,6 +106,31 @@ def has_config(component_id=DEFAULT):
     return component_id in configurations or DEFAULT in configurations
 
 
+def upload_folder_root_for(component_id=DEFAULT):
+    """The upload folder whose paths ``du.callback`` should report.
+
+    For a component with its own named configuration, that configuration wins.
+    For everything else -- which is every component in a single-uploader app --
+    the module-level ``UPLOAD_FOLDER_ROOT`` wins.
+
+    That distinction exists so that assigning to ``settings.UPLOAD_FOLDER_ROOT``
+    after ``configure_upload()`` still redirects the reported paths, the way it
+    did upstream. It is the only workaround anyone has for upstream #17
+    ("change the destination folder dynamically"), and silently ignoring the
+    assignment is worse than not supporting it. Note it has never moved where
+    the *server* writes: the handler captured the folder at ``decorate_server``
+    time upstream too.
+    """
+    config = configurations.get(component_id)
+    if config is not None and component_id is not DEFAULT:
+        return config.upload_folder_root
+
+    root = globals().get("UPLOAD_FOLDER_ROOT")
+    if root is not None:
+        return root
+    return get_config(component_id).upload_folder_root
+
+
 def reset():
     """Forget every registered configuration.
 

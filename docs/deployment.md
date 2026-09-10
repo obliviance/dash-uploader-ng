@@ -9,8 +9,9 @@ layer intercepts it and the browser reports an upload error
 ([#118](https://github.com/fohrloop/dash-uploader/issues/118)). flow.js does not
 send a CSRF token, so the route has to be exempted.
 
-The endpoint names are deterministic — derived from the upload API path, not
-from the view function — so you can exempt them by name:
+The first uploader registers under the endpoint names `get` and `post` — the
+same names upstream dash-uploader used, so an exemption written against
+upstream keeps working:
 
 ```python
 from flask_wtf.csrf import CSRFProtect
@@ -18,15 +19,22 @@ from flask_wtf.csrf import CSRFProtect
 csrf = CSRFProtect(app.server)
 du.configure_upload(app, "/data/uploads")     # /API/dash-uploader by default
 
-# Endpoint names are "dash_uploader_ng_<slugified api path>_get" / "_post".
-for rule in app.server.url_map.iter_rules():
-    if rule.endpoint.startswith("dash_uploader_ng_"):
-        csrf.exempt(app.server.view_functions[rule.endpoint])
+csrf.exempt(app.server.view_functions["post"])
+csrf.exempt(app.server.view_functions["get"])
 ```
 
-With the default `upload_api` the two endpoints are
-`dash_uploader_ng_API_dash_uploader_get` and
-`dash_uploader_ng_API_dash_uploader_post`.
+If you call `configure_upload()` more than once, the *second and subsequent*
+uploaders cannot reuse those names, so they get names derived from their upload
+API path instead: `dash_uploader_ng_<slugified api path>_get` / `_post`. The
+version that covers every uploader regardless:
+
+```python
+upload_apis = {"/API/dash-uploader", "/API/agreements"}   # yours
+
+for rule in app.server.url_map.iter_rules():
+    if rule.rule in upload_apis:
+        csrf.exempt(app.server.view_functions[rule.endpoint])
+```
 
 Exempting the endpoint removes CSRF protection *from the upload route*. That
 route accepts unauthenticated writes to disk by design, so if your app is
