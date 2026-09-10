@@ -68,6 +68,20 @@ against interrupted writes, not a security control — an attacker can always
 just send a chunk whose size matches. The security boundary is
 [SECURITY.md](../SECURITY.md).
 
+## The file is assembled even when the resume sends no `POST`
+
+If an upload is interrupted *after* its last chunk has landed — a browser
+crash, or the server going down between the final chunk write and the
+reassembly — then on resume flow.js tests every chunk, is told each one is
+present, and declares the file complete **without sending a single `POST`**.
+
+The upload `POST` is where chunks are combined into the final file, so a resume
+like that used to finish with nothing on disk: the component showed "complete",
+`du.callback` fired, and the target file did not exist. The chunk-test `GET`
+for the final chunk now runs the same completeness check and assembly the
+`POST` does, so a fully-present upload is reassembled whether the last request
+of the session was a `POST` or a `GET`.
+
 ## Resuming across a page reload
 
 Chunks are stored under the upload's `upload_id`, and `du.Upload()` generates a

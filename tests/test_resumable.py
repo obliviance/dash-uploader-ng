@@ -228,6 +228,100 @@ class TestInterruptedWritesAreNotTrusted:
         assert (upload_root / UPLOAD_ID / FILENAME).read_bytes() == b"".join(parts)
 
 
+class TestResumeAssemblesTheFile:
+    """A resume where every chunk is already present must still produce the file.
+
+    flow.js is satisfied by the chunk-test responses alone and sends no POST in
+    that case, and the upload POST is otherwise the only place the chunks are
+    combined -- so the upload would be reported complete while nothing lands on
+    disk. This is the regression that shipped when `testChunks` was enabled.
+    """
+
+    def _seed_all_chunks(self, upload_root, parts):
+        """Write every chunk to disk as a prior, un-assembled session would."""
+        d = chunk_dir(upload_root)
+        d.mkdir(parents=True, exist_ok=True)
+        for i, part in enumerate(parts, start=1):
+            (d / get_chunk_name(FILENAME, i)).write_bytes(part)
+
+    def test_a_fully_present_upload_is_assembled_on_the_final_chunk_probe(
+        self, client, upload_root
+    ):
+        parts = [b"aaaa", b"bbbb", b"cccc", b"dddd", b"eeee"]
+        self._seed_all_chunks(upload_root, parts)
+        target = upload_root / UPLOAD_ID / FILENAME
+        assert not target.exists()
+
+        # flow.js tests every chunk, in order, and gets "present" for each.
+        for i, part in enumerate(parts, start=1):
+            assert (
+                probe_chunk(client, i, len(parts), part).status_code
+                in FLOW_SUCCESS_STATUSES
+            )
+
+        assert target.read_bytes() == b"".join(parts), (
+            "the upload finished entirely through chunk-test GETs and the "
+            "server never assembled the file"
+        )
+        assert not chunk_dir(upload_root).exists(), "chunk folder not cleaned up"
+
+    def test_no_post_is_needed_when_resuming_a_complete_upload(
+        self, client, upload_root
+    ):
+        parts = [b"1111", b"2222", b"3333"]
+        self._seed_all_chunks(upload_root, parts)
+
+        # Only the test GETs -- exactly what flow.js does when every chunk is
+        # already on the server.
+        for i, part in enumerate(parts, start=1):
+            probe_chunk(client, i, len(parts), part)
+
+        assert (upload_root / UPLOAD_ID / FILENAME).read_bytes() == b"".join(parts)
+
+    def test_probing_a_non_final_chunk_does_not_assemble_early(
+        self, client, upload_root
+    ):
+        parts = [b"aaaa", b"bbbb", b"cccc"]
+        self._seed_all_chunks(upload_root, parts)
+        target = upload_root / UPLOAD_ID / FILENAME
+
+        # Chunks 1 and 2 present-probed: the file must not be built yet.
+        probe_chunk(client, 1, 3, parts[0])
+        probe_chunk(client, 2, 3, parts[1])
+        assert not target.exists()
+
+        probe_chunk(client, 3, 3, parts[2])
+        assert target.read_bytes() == b"".join(parts)
+
+    def test_partial_resume_still_assembles_via_the_last_posted_chunk(
+        self, client, upload_root
+    ):
+        parts = [b"aaaaaaaa", b"bbbbbbbb", b"cccccccc", b"dddddddd"]
+        # Prior session got chunks 1 and 3 up before dying.
+        d = chunk_dir(upload_root)
+        d.mkdir(parents=True)
+        (d / get_chunk_name(FILENAME, 1)).write_bytes(parts[0])
+        (d / get_chunk_name(FILENAME, 3)).write_bytes(parts[2])
+
+        for i, part in enumerate(parts, start=1):
+            if probe_chunk(client, i, 4, part).status_code in FLOW_SUCCESS_STATUSES:
+                continue
+            assert post_chunk(client, part, i, 4).status_code == 200
+
+        assert (upload_root / UPLOAD_ID / FILENAME).read_bytes() == b"".join(parts)
+
+    def test_a_partial_present_set_is_not_assembled_on_a_probe(
+        self, client, upload_root
+    ):
+        """The final chunk present but earlier ones missing is not completeness."""
+        d = chunk_dir(upload_root)
+        d.mkdir(parents=True)
+        (d / get_chunk_name(FILENAME, 3)).write_bytes(b"cccc")
+
+        assert probe_chunk(client, 3, 3, b"cccc").status_code in FLOW_SUCCESS_STATUSES
+        assert not (upload_root / UPLOAD_ID / FILENAME).exists()
+
+
 class TestTheResumableProp:
     def test_defaults_to_enabled(self):
         import dash_uploader_ng as du
