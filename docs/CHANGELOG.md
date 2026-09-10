@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.2.1 (dash-uploader-ng)
+
+A single-bug patch release. `1.2.0` was tagged but never reached PyPI (the
+publish workflow was blocked at the time), so this is the first release since
+`1.1.0` — it also carries everything listed under `1.2.0` below.
 
 ### Fixed
 - **A resumed upload that sends no `POST` is now assembled.** With `resumable`
@@ -12,7 +16,19 @@
   "succeeded" with no file on disk and `du.callback` fired with a path that did
   not exist. The chunk-test `GET` for the final chunk now performs the same
   completeness check and assembly. Uploads that were never interrupted are
-  unaffected. See [`docs/resumable-uploads.md`](resumable-uploads.md).
+  byte-for-byte unaffected. See
+  [`docs/resumable-uploads.md`](resumable-uploads.md).
+
+### Build
+- Pinned `js-yaml` to `>= 4.3.2` via an `overrides` entry, clearing
+  [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh)
+  (a new advisory against the `js-yaml` pulled in transitively by `eslint`).
+  Build tooling only; the shipped bundle is unaffected. `npm audit` is back to
+  zero.
+
+### Tests
+187 headless tests (six new, covering the resume-without-POST case), plus
+upstream's Selenium suite, green on Python 3.10–3.13.
 
 ## 1.2.0 (dash-uploader-ng)
 

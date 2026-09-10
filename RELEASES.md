@@ -11,6 +11,45 @@ Newest first.
 
 ---
 
+## 1.2.1 — 2026-09-10
+
+Single-bug patch release.
+
+| | |
+| --- | --- |
+| Status | _(fill in when the publish workflow completes)_ |
+| Tag | `v1.2.1` |
+| PyPI | _(pending)_ |
+| Released from | `main` |
+| Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+**Headline:** a resumable upload (`resumable=True`, the default) that was
+interrupted *after* its last chunk landed but before reassembly would, on
+resume, be reported complete by flow.js without a single `POST` — and the
+`POST` handler was the only place chunks were combined, so the upload
+"succeeded" with no file on disk. The chunk-test `GET` for the final chunk now
+runs the same completeness check and assembly.
+
+This is also the first release to actually reach PyPI since `1.1.0` — `1.2.0`
+was tagged but its publish workflow never ran (see below), so `1.2.1` supersedes
+it and carries all of the `1.2.0` changes too.
+
+**Also in this release:** `js-yaml` pinned to `>= 4.3.2` via `overrides` to
+clear GHSA-2883-xcg3-v3hh, a new advisory against the copy `eslint` pulls in.
+Build tooling only.
+
+**Verified:**
+
+- 187 headless tests on Python 3.10–3.13, six of them new and specific to this
+  bug (`tests/test_resumable.py::TestResumeAssemblesTheFile`).
+- Upstream parity suite unchanged: an uninterrupted upload is byte-for-byte
+  identical to before, and the O(N²) syscall regression test still holds.
+- Upstream's Selenium browser suite.
+- `npm audit` back to zero.
+- Full flow.js request-sequence simulation (test-GET protocol + POST) against
+  both this handler and the vendored pristine upstream handler: happy path,
+  retry, re-upload, and the previously-broken all-chunks-present resume.
+
 ## 1.2.0 — 2026-08-26
 
 Bug fixes and performance only; no new features.
