@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **A resumed upload that sends no `POST` is now assembled.** With `resumable`
+  on (the default), if an upload was interrupted after its final chunk had
+  already been stored — a browser crash, or the server restarting between the
+  last chunk write and reassembly — flow.js would test every chunk on resume,
+  be told each was present, and report the file complete without sending a
+  single `POST`. Reassembly only happened in the `POST` handler, so the upload
+  "succeeded" with no file on disk and `du.callback` fired with a path that did
+  not exist. The chunk-test `GET` for the final chunk now performs the same
+  completeness check and assembly. Uploads that were never interrupted are
+  unaffected. See [`docs/resumable-uploads.md`](resumable-uploads.md).
+
 ## 1.2.0 (dash-uploader-ng)
 
 Bug fixes and performance only — no new features. Backwards compatible.

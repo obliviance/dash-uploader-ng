@@ -227,80 +227,96 @@ class BaseHttpRequestHandler:
         r.chunk_data.save(chunk_file)
         self.remove_file(lock_file_path)
 
-        # Check if the upload is complete.
-        #
-        # Upstream stat()ed all N chunks on EVERY request, which is O(N^2)
-        # syscalls across an upload: the 11.2 GB file in upstream #102 is 11468
-        # chunks at the default 1 MB, so ~131 million stat() calls. That is the
-        # bulk of "two orders of magnitude slower than a file copy".
-        #
-        # One directory listing per request replaces N stat()s, and the cheap
-        # length test short-circuits before the exact set comparison is built,
-        # so the common case (an upload still in progress) costs one readdir.
+        self.assemble_if_complete(
+            temporary_folder_for_file_chunks,
+            upload_session_root,
+            r.filename,
+            r.n_chunks_total,
+        )
+
+        return r.filename
+
+    def assemble_if_complete(
+        self, chunk_folder, upload_session_root, filename, n_chunks_total
+    ):
+        """Combine the stored chunks into the final file once every chunk is in.
+
+        Called from the upload POST after each chunk is saved, and from the
+        chunk-test GET when the final chunk is found already present -- see
+        ``_get`` for why the GET path is needed at all.
+
+        Returns True only on the call that actually assembles the file; False
+        when the upload is not complete yet or another request got there first.
+        """
         # Cheap gate first: if the final chunk is not on disk the upload cannot
         # be complete, whatever else is. flow.js sends chunks in order by
         # default (simultaneousUploads=1), so for all but the last request this
         # is a single stat() and we stop here.
+        #
+        # Upstream instead stat()ed all N chunks on EVERY request, which is
+        # O(N^2) syscalls across an upload: the 11.2 GB file in upstream #102 is
+        # 11468 chunks at the default 1 MB, so ~131 million stat() calls -- the
+        # bulk of "two orders of magnitude slower than a file copy". One
+        # directory listing replaces N stat()s once the gate opens.
         last_chunk = os.path.join(
-            temporary_folder_for_file_chunks,
-            get_chunk_name(r.filename, r.n_chunks_total),
+            chunk_folder, get_chunk_name(filename, n_chunks_total)
         )
-        upload_complete = False
-        if os.path.exists(last_chunk):
-            present = self.chunk_files_present(
-                temporary_folder_for_file_chunks, r.filename
-            )
-            upload_complete = len(present) >= r.n_chunks_total and present.issuperset(
-                get_chunk_name(r.filename, x) for x in range(1, r.n_chunks_total + 1)
-            )
+        if not os.path.exists(last_chunk):
+            return False
 
-        # combine all the chunks to create the final file
-        if upload_complete:
+        present = self.chunk_files_present(chunk_folder, filename)
+        if len(present) < n_chunks_total or not present.issuperset(
+            get_chunk_name(filename, x) for x in range(1, n_chunks_total + 1)
+        ):
+            return False
 
-            # Make sure all files are finished writing
-            # but do not wait forever..
-            tried = 0
-            while self.locks_present(temporary_folder_for_file_chunks):
-                tried += 1
-                if tried >= 5:
-                    logger.error(
-                        "Error uploading files with temporary_folder_for_file_chunks: %s.",
-                        temporary_folder_for_file_chunks,
-                    )
-                    raise Exception(
-                        "Error uploading files with temporary_folder_for_file_chunks: "
-                        f"{temporary_folder_for_file_chunks}"
-                    )
-                time.sleep(1)
-
-            chunk_paths = [
-                os.path.join(
-                    temporary_folder_for_file_chunks, get_chunk_name(r.filename, x)
+        # Make sure all files are finished writing, but do not wait forever.
+        tried = 0
+        while self.locks_present(chunk_folder):
+            tried += 1
+            if tried >= 5:
+                logger.error(
+                    "Error uploading files with temporary_folder_for_file_chunks: %s.",
+                    chunk_folder,
                 )
-                for x in range(1, r.n_chunks_total + 1)
-            ]
+                raise Exception(
+                    "Error uploading files with temporary_folder_for_file_chunks: "
+                    f"{chunk_folder}"
+                )
+            time.sleep(1)
 
-            # Make sure some other chunk didn't trigger file reconstruction
-            target_file_name = ensure_within(
-                upload_session_root, upload_session_root / r.filename
-            )
-            if os.path.exists(target_file_name):
-                logger.info("File %s exists already. Overwriting..", target_file_name)
-                self.remove_file(target_file_name)
+        chunk_paths = [
+            os.path.join(chunk_folder, get_chunk_name(filename, x))
+            for x in range(1, n_chunks_total + 1)
+        ]
 
-            # Stream each chunk rather than reading it whole. Upstream's
-            # `.read()` pulled an entire chunk into memory per iteration, so
-            # peak usage tracked chunk_size -- fine at the 1 MB default, but
-            # anyone raising chunk_size to make large uploads bearable
-            # (upstream #102, #30) paid for it in RAM per concurrent upload.
+        # Make sure some other request didn't trigger file reconstruction.
+        target_file_name = ensure_within(
+            upload_session_root, upload_session_root / filename
+        )
+        if os.path.exists(target_file_name):
+            logger.info("File %s exists already. Overwriting..", target_file_name)
+            self.remove_file(target_file_name)
+
+        # Stream each chunk rather than reading it whole. Upstream's `.read()`
+        # pulled an entire chunk into memory per iteration, so peak usage
+        # tracked chunk_size -- fine at the 1 MB default, but anyone raising
+        # chunk_size to make large uploads bearable (upstream #102, #30) paid
+        # for it in RAM per concurrent upload.
+        try:
             with open(target_file_name, "ab") as target_file:
                 for p in chunk_paths:
                     with open(p, "rb") as stored_chunk_file:
                         shutil.copyfileobj(stored_chunk_file, target_file)
-            self.server.logger.debug("File saved to: %s", target_file_name)
-            shutil.rmtree(temporary_folder_for_file_chunks)
+        except FileNotFoundError:
+            # A concurrent request assembled the file and removed the chunk
+            # folder between the completeness check above and here. Nothing to
+            # do -- that request owns the result.
+            return False
 
-        return r.filename
+        self.server.logger.debug("File saved to: %s", target_file_name)
+        shutil.rmtree(chunk_folder, ignore_errors=True)
+        return True
 
     def get(self):
         return self._handle(self._get)
@@ -390,7 +406,25 @@ class BaseHttpRequestHandler:
         self.server.logger.debug("Testing chunk: %s", chunk_file)
 
         if self.chunk_is_complete(chunk_file, lock_file, r.current_chunk_size):
-            # Let flow.js know this chunk already exists, so it is skipped.
+            # This chunk is already on the server, so flow.js will skip it.
+            #
+            # When an interrupted upload resumes and every chunk is found
+            # present, flow.js is satisfied by these test responses alone and
+            # never sends a POST -- but `_post` is otherwise the only place that
+            # combines the chunks, so the file would be reported complete to the
+            # user and to `du.callback` while never actually being assembled.
+            # (Upstream shipped with testChunks disabled, so this path could not
+            # run.) flow.js tests chunks in order, so the test for the final
+            # chunk is the point where the whole upload is known to be present;
+            # assemble it here. If earlier chunks are still missing this is a
+            # no-op and the last of those to be POSTed assembles as usual.
+            if r.chunk_number == r.n_chunks_total:
+                self.assemble_if_complete(
+                    temporary_folder_for_file_chunks,
+                    upload_session_root,
+                    r.filename,
+                    r.n_chunks_total,
+                )
             return "OK"
 
         # Let flow.js know this chunk still needs uploading. Must not be 404.
