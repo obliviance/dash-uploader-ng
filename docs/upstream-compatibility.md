@@ -38,6 +38,8 @@ one over the same requests.
 | F-09 | An extra `GET` per chunk, on by default | ✅ off by default |
 | F-10 | Bundled CSS no longer leaks into the host page | ⚠️ **kept** — see below |
 | F-11 | An extra class on the root element | ⚠️ **kept** — consequence of F-10 |
+| F-12 | `isCompleted` prop silently dropped from `fileSuccess` | ✅ restored in 1.3.1 |
+| F-13 | `completedClass` never applied (`getClass()` read `completeClass`) | ✅ fixed in 1.3.2 |
 
 ---
 
@@ -164,6 +166,51 @@ limiter tuned against upstream was never configured for.
 Turn it on with `du.Upload(id=..., resumable=True)`. See
 [resumable-uploads.md](resumable-uploads.md).
 
+### F-12 · `isCompleted` prop
+
+`Upload_ReactComponent`'s `fileSuccess` handler updated `dashAppCallbackBump`
+and the file-name/size props on every successful upload, but never set
+`isCompleted` — upstream's own boolean prop for "this file just finished" —
+and it was not declared in `propTypes` at all, so it never reached the
+generated Python component. Apps hooking a completion transition to
+`isCompleted` as an `Input`/`State` never saw it fire, even though anything
+driven by `dashAppCallbackBump` kept working, which is what let it go
+unnoticed: the upload logs, the row just never turns ready.
+
+Restored to match upstream: `isCompleted` is declared in
+`propTypes`/`defaultProps`, set `True` on `fileSuccess`, and reset to `False`
+when the next upload starts. Fixed in 1.3.1; see
+[RELEASES.md](../RELEASES.md#131--2026-09-18).
+
+This entry did not exist when this audit first ran (1.2.1 → 1.3.0) — the
+"Verified identical" claim below that "React prop surface: `resumable`
+added, none removed" was checked at the declaration/behavior level for the
+props the audit's own test corpus exercised, and `isCompleted` fell through
+that gap because nothing in the corpus asserted on it. Recorded here as a
+correction to that claim, not just a new finding.
+
+### F-13 · `completedClass` never applied
+
+`getClass()` read `this.props.completeClass` to decide whether to add the
+"upload complete" CSS class to the root element, but the prop is declared and
+defaulted everywhere else as `completedClass`. `completeClass` was never
+declared, so the read was always `undefined`, and the documented
+`completedClass` prop never did anything.
+
+This is upstream's own bug, byte-for-byte the same typo at `e1a1af4` — not
+something this fork introduced. It stayed invisible because `isComplete` (the
+state flag gating this line) was `false` until F-12 was fixed, so the branch
+never ran; once F-12 shipped, it ran on every successful upload, pushing
+`undefined` into the class array. `Array.prototype.join` renders `undefined`
+as an empty string, so the only visible effect was a stray space in the
+rendered `className` — never a broken class name, and never the string
+`"undefined"`.
+
+Unlike F-10/F-11, restoring this costs nothing in drop-in compatibility: the
+prop's own documentation already promised this behavior, upstream just never
+delivered it, so no app could have been relying on `completedClass` actually
+working. Fixed in 1.3.2 by reading `completedClass` instead of `completeClass`.
+
 ---
 
 ## Kept on purpose
@@ -245,7 +292,11 @@ both handlers over the same requests.
   `Upload(…, resumable=False)`, `callback(…, state=None)`,
   `configure_upload(…, upload_component_ids=None)`
 - `UploadStatus.__init__` signature and attributes unchanged
-- React prop surface: `resumable` added, none removed
+- React prop surface: as of 1.3.1, `resumable` and `isCompleted` added, none
+  removed. (Between 1.3.0 and 1.3.1 this claim was wrong: `isCompleted` had
+  been dropped without being declared, so it was invisible to a props-surface
+  diff done at the declaration level rather than by tracing every setProps
+  call. See F-12.)
 - `index.js`, `Button.react.js`, `ProgressBar.react.js` byte-identical
 - CSS: 241 / 10 / 3 rules in, 241 / 10 / 3 out — none dropped, none added, no
   declaration altered
@@ -276,3 +327,13 @@ removed, then the two rule sets diffed as multisets.
 
 Not covered: behaviour on Windows and macOS hosts, and Dash versions other than
 the 1.21 and 4.x used here.
+
+**Revisited for 1.3.2** with a genuine function-by-function read of
+`Upload_ReactComponent.react.js` against upstream's source (not just its
+minified bundle), rather than a props/behavior-level comparison. That is what
+surfaced F-12 and F-13: the HTTP-handling layer already had this depth of
+scrutiny via `test_upstream_parity.py`'s differential testing; the JS
+component did not, and both findings lived specifically in code paths no test
+on either side exercised. The rest of the audit's claims above were
+independently re-verified at this pass and stand — including redoing the CSS
+rule comparison programmatically rather than trusting the earlier count.
