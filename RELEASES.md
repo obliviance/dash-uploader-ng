@@ -11,6 +11,60 @@ Newest first.
 
 ---
 
+## 1.3.2 — 2026-09-18
+
+Bug fix (F-13) and three performance improvements, no new features.
+
+| | |
+| --- | --- |
+| Status | **Published** |
+| Tag | `v1.3.2` @ `0db2a2b` (pushed 2026-09-18) |
+| PyPI | ✅ https://pypi.org/project/dash-uploader-ng/1.3.2/ (wheel + sdist) |
+| Released from | `main` @ `0db2a2b` |
+| Gating CI run | [`35397858403`](https://github.com/obliviance/dash-uploader-ng/actions/runs/35397858403) (release branch, 10/10 green) and [`35398089360`](https://github.com/obliviance/dash-uploader-ng/actions/runs/35398089360) (publish: full matrix + upstream browser suite, all green); `stable` fast-forwarded to `0db2a2b` automatically |
+| Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+**Headline:** `getClass()` in `Upload_ReactComponent` read the undeclared
+`completeClass` instead of the actual `completedClass` prop, so the
+documented "upload complete" CSS class never applied — upstream's own typo,
+faithfully inherited, invisible until the 1.3.1 `isCompleted` fix made the
+gating branch reachable. Fixed by reading `completedClass`. Full detail in
+[docs/upstream-compatibility.md#f-13--completedclass-never-applied](docs/upstream-compatibility.md#f-13--completedclass-never-applied).
+
+**Also:** a performance review of the request-handling and component code
+found three small, verified-safe wins, all pinned by the existing test
+suite rather than just asserted: a no-op `os.utime()` call on each chunk's
+lock file removed (nothing ever reads its mtime); the per-chunk
+`.exists()` check before `mkdir()` replaced with `mkdir(exist_ok=True)`,
+dropping a `stat()` that succeeded on every chunk after the first; and
+`Upload_ReactComponent.state.uploadedFiles` now reset at the start of each
+upload batch instead of accumulating for the component's entire lifetime.
+None change behavior — `tests/test_performance.py`'s syscall-counting suite
+passed before and after.
+
+Two further findings from that review were deliberately **not** acted on:
+`ensure_within()` re-resolves the same session/chunk-folder path multiple
+times per chunk, which is real but touches the code CVE-2026-38360's fix
+depends on being unconditional, so it needs benchmarking and a
+security-conscious look rather than a quick edit; and chunk-then-copy
+reassembly does a full second read+write pass over every uploaded byte,
+where writing directly at each chunk's offset would roughly halve disk I/O
+but needs a different completeness-tracking mechanism entirely. Both are
+real candidates for a future release, not this one.
+
+**Post-publish smoke test**, against the wheel actually installed from PyPI
+in a clean virtualenv (run from outside the repo, as usual, so the
+installed package is what's imported): version `1.3.2`; `_post`'s source
+confirmed no `os.utime()` call and `mkdir(..., exist_ok=True)` present; the
+bundled JS confirmed `uploadedFiles:[]` reset present in
+`onFilesSubmitted`'s `setState` call (not just the initial state).
+
+**Note on the index:** as with 1.3.0, the aggregate PyPI JSON endpoint and
+the simple index pip reads both briefly still reported `1.3.1` as latest
+immediately after the publish workflow finished, while the version-specific
+endpoint (`/pypi/dash-uploader-ng/1.3.2/json`) already served `1.3.2`
+correctly. Caught up within a couple of minutes; not a publish failure.
+
 ## 1.3.1 — 2026-09-18
 
 Single-bug patch release.
