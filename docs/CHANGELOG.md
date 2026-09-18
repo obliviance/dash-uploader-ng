@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.1 (dash-uploader-ng)
+
+### Fixed
+- **`isCompleted` fires again.** `Upload_ReactComponent`'s `fileSuccess`
+  handler updated `dashAppCallbackBump` and the file-name/size props on every
+  successful upload, but never set `isCompleted` — upstream's own boolean prop
+  for "this file just finished" — and the prop wasn't even declared, so it
+  never reached the generated Python component. Apps that hook a "file ready"
+  transition (a row, a status badge, a next-step button) to `isCompleted` as
+  an `Input` or `State` never saw it fire, even though anything driven by
+  `dashAppCallbackBump` kept working normally, which made the symptom easy to
+  miss: the upload logs, the row just never turns ready. Restored, matching
+  upstream: `isCompleted` is declared in `propTypes`/`defaultProps`
+  (`bool`, default `False`), set `True` on `fileSuccess`, and reset to `False`
+  when the next upload starts.
+
 ## 1.3.0 (dash-uploader-ng)
 
 A line-by-line audit against upstream `dash-uploader` at `e1a1af4` found eleven
