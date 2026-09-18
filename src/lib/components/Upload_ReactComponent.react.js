@@ -292,10 +292,20 @@ export default class Upload_ReactComponent extends Component {
                 uploadedFileNames: uploadedFileNames,
                 uploadedFilesSize: bytest_to_mb(this.flow.sizeUploaded()),
                 totalFilesSize: bytest_to_mb(this.flow.getSize()),
+                // Upstream sets this on every fileSuccess (dash-uploader
+                // Upload.react.js). Apps built against upstream use it as the
+                // Input/State that flips a row to "file ready" -- dropping it
+                // here left dashAppCallbackBump firing (so logging callbacks
+                // still ran) while anything keyed off isCompleted silently
+                // never fired.
+                isCompleted: true,
             });
         }
         this.setState({
             uploadedFiles: uploadedFiles,
+            // Drives getClass()/getStyle()'s completeClass/completeStyle,
+            // same as upstream's setState({isComplete: true, ...}) here.
+            isComplete: true,
             messageStatus: this.props.completedMessage + file.fileName
         })
 
@@ -393,8 +403,12 @@ export default class Upload_ReactComponent extends Component {
             totalFilesCount: this.flow.files.length,
             uploadedFilesSize: 0,
             totalFilesSize: 0,
+            // Mirrors upstream's reset on 'fileAdded': a new batch starts out
+            // not completed, so a re-upload doesn't leave isCompleted stuck
+            // true from the previous run.
+            isCompleted: false,
         })
-        this.setState({ showEnabledButtons: true })
+        this.setState({ showEnabledButtons: true, isComplete: false })
         this.flow.upload()
         this.setState({ isUploading: true })
 
@@ -723,6 +737,15 @@ Upload_ReactComponent.propTypes = {
      */
     upload_id: PropTypes.string,
 
+    /**
+     * True once the current file (or batch) has finished uploading
+     * successfully; reset to False when a new upload starts. This is the
+     * prop apps hook into (as an Input or State) to know a file is ready,
+     * as opposed to dashAppCallbackBump, which only signals "something
+     * changed, go re-read the other props".
+     */
+    isCompleted: PropTypes.bool,
+
 
     /**
      *  Total number of files to be uploaded.
@@ -768,5 +791,6 @@ Upload_ReactComponent.defaultProps = {
     id: 'default-dash-uploader-id',
     onUploadErrorCallback: undefined,
     dashAppCallbackBump: 0,
-    upload_id: ''
+    upload_id: '',
+    isCompleted: false
 };
