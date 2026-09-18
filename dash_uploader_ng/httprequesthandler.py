@@ -212,8 +212,10 @@ class BaseHttpRequestHandler:
             upload_session_root, upload_session_root / r.unique_identifier
         )
 
-        if not temporary_folder_for_file_chunks.exists():
-            temporary_folder_for_file_chunks.mkdir(parents=True)
+        # exist_ok rather than a separate .exists() check first: every chunk
+        # but the first hits the "already there" case, so this drops a stat()
+        # call from every request in the upload after the first.
+        temporary_folder_for_file_chunks.mkdir(parents=True, exist_ok=True)
 
         # save the chunk data
         chunk_name = get_chunk_name(r.filename, r.chunk_number)
@@ -225,8 +227,13 @@ class BaseHttpRequestHandler:
         # make a lock file
         lock_file_path = temporary_folder_for_file_chunks / f".lock_{r.chunk_number}"
 
+        # Opening in append mode creates the file (or leaves an existing one
+        # alone) -- its presence is all chunk_is_complete()/locks_present()
+        # ever check. Nothing anywhere reads its mtime, so there is no
+        # os.utime() call here to keep it "fresh": that used to be one
+        # pointless syscall per chunk.
         with open(lock_file_path, "a"):
-            os.utime(lock_file_path, None)
+            pass
 
         r.chunk_data.save(chunk_file)
         self.remove_file(lock_file_path)
