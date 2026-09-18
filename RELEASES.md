@@ -11,6 +11,51 @@ Newest first.
 
 ---
 
+## 1.3.1 — 2026-09-18
+
+Single-bug patch release.
+
+| | |
+| --- | --- |
+| Status | **Published** |
+| Tag | `v1.3.1` @ `63adcc8` (pushed 2026-09-18) |
+| PyPI | ✅ https://pypi.org/project/dash-uploader-ng/1.3.1/ (wheel + sdist) |
+| Released from | `main` @ `63adcc8` |
+| Gating CI run | [`35376036357`](https://github.com/obliviance/dash-uploader-ng/actions/runs/35376036357) (release branch, green) and [`35376400735`](https://github.com/obliviance/dash-uploader-ng/actions/runs/35376400735) (publish: 3.10-3.13 + upstream browser suite, all green); `stable` fast-forwarded to `63adcc8` automatically |
+| Publish method | PyPI Trusted Publishing (OIDC, no API token) |
+
+**Headline:** `Upload_ReactComponent`'s `fileSuccess` handler updated
+`dashAppCallbackBump` and the file-name/size props on every successful upload,
+but never set `isCompleted` — upstream's own boolean prop for "this file just
+finished" — and the prop was not even declared in `propTypes`, so it never
+reached the generated Python component at all. An app hooking a "file ready"
+row/status transition to `isCompleted` (as an `Input` or `State`) never saw it
+fire, while anything driven by `dashAppCallbackBump` — including a logging
+callback — kept working, which is what made the regression easy to miss:
+upload logged, row never turns ready.
+
+Root-caused by diffing `fileSuccess` against upstream's real distributed
+bundle (`dash_uploader-0.6.1`'s `dash_uploader.min.js`), which confirmed
+upstream calls `setProps({fileNames, isCompleted: true})` and
+`setState({isComplete: true, ...})` on every file success, and resets both to
+`false` on the next `fileAdded`. `git log -p` on
+`Upload_ReactComponent.react.js` showed `isComplete` had been `false` since
+the file's original import (`e538278`) and was never set anywhere afterward —
+so this was present from the ng rewrite, not introduced by a later commit.
+
+**Post-publish smoke test**, against the wheel actually installed from PyPI in
+a clean virtualenv (run from outside the repo so the installed package is
+what's imported, not the working tree): version `1.3.1`; `isCompleted` present
+in `Upload_ReactComponent`'s `available_properties` and settable/gettable as a
+real prop on the instantiated component.
+
+**Known gap, not addressed here:** there is still no JS-level parity check for
+this component (the vestigial `src/lib/tests/Upload_ReactComponent.test.js`
+imports `@testing-library/react` and `jest`, neither of which is a
+dependency, and CI never runs a JS test step) — only `tests/test_upstream_parity.py`
+covers the HTTP-handling layer this way. Left as a follow-up rather than
+folded into this patch.
+
 ## 1.3.0 — 2026-09-10
 
 Drop-in compatibility with upstream `dash-uploader`.
