@@ -13,7 +13,9 @@ The rendered version of this report is kept alongside it at
 **Audit baseline:** upstream commit
 [`e1a1af4`](https://github.com/fohrloop/dash-uploader/commit/e1a1af47aa607b7aa3deceafe5c5452d98465610),
 the last before the repository was archived on 2025-07-19.
-**First audited:** 1.2.1. **Resolved in:** 1.3.0.
+**First audited:** 1.2.1. **F-01–F-11 resolved in:** 1.3.0. **F-12:** 1.3.1.
+**F-13, F-14:** merged to `main`, not yet in a release — see each finding's
+status in the table below rather than treating this line as current.
 
 Regressions found by the audit are pinned by
 [`tests/test_upstream_compatibility.py`](../tests/test_upstream_compatibility.py)
@@ -31,15 +33,16 @@ one over the same requests.
 | F-02 | Dash floor raised to 2.0 | ✅ restored to 1.1.0 |
 | F-03 | `upload_id` character set narrowed | ✅ relaxed to upstream's |
 | F-04 | Filenames legal on Linux/macOS refused | ✅ relaxed to upstream's |
-| F-05 | Uploads over 100,000 chunks refused | ✅ ceiling raised 100× |
+| F-05 | Uploads over 100,000 chunks refused | ✅ ceiling raised 100× — ⚠️ residual cap remains, see below |
 | F-06 | `post_after` / `get_after` skipped on failure | ✅ restored |
 | F-07 | `settings.UPLOAD_FOLDER_ROOT` became read-only | ✅ writable again |
 | F-08 | Flask endpoint names changed | ✅ restored for the first uploader |
 | F-09 | An extra `GET` per chunk, on by default | ✅ off by default |
 | F-10 | Bundled CSS no longer leaks into the host page | ⚠️ **kept** — see below |
 | F-11 | An extra class on the root element | ⚠️ **kept** — consequence of F-10 |
-| F-12 | `isCompleted` prop silently dropped from `fileSuccess` | ✅ restored in 1.3.1 |
-| F-13 | `completedClass` never applied (`getClass()` read `completeClass`) | ✅ fixed in 1.3.2 |
+| F-12 | `isCompleted` prop silently dropped from `fileSuccess` | ✅ restored, released in 1.3.1 |
+| F-13 | `completedClass` never applied (`getClass()` read `completeClass`) | ✅ fixed on `main`, pending release |
+| F-14 | `upload_id`/`service` frozen at mount (upstream #45) | ✅ fixed, released in 1.2.1 — undocumented until now |
 
 ---
 
@@ -111,6 +114,18 @@ hit and be refused for. It is now 10,000,000 (~10 TB), and the reassembly builds
 its chunk paths lazily so nothing is materialised per chunk. Upstream had no
 limit; this one exists only to keep `range()` from being handed something
 absurd on an unauthenticated request.
+
+**This is marked resolved relative to the regression, not relative to true
+upstream.** Upstream enforced no ceiling at all; a 10,000,000-chunk cap is a
+residual divergence, just one so far above any real upload (or any deployment
+this fork is aware of) that it isn't tracked as its own "kept on purpose"
+entry the way F-10/F-11 are. The same shape of residual divergence applies to
+F-03/F-04: `safe_segment`/`safe_filename` also reject anything over the
+filesystem's byte limit (~255 bytes, less for filenames to leave room for the
+`_part_<n>` chunk suffix), where upstream performed no length check at all and
+would instead fail at write time with an opaque `OSError`. Both are new,
+proactive limits rather than restorations — upstream's actual behavior at
+these extremes was to crash, not to succeed.
 
 ### F-06 · Subclass hooks on the failure path
 
@@ -210,6 +225,35 @@ Unlike F-10/F-11, restoring this costs nothing in drop-in compatibility: the
 prop's own documentation already promised this behavior, upstream just never
 delivered it, so no app could have been relying on `completedClass` actually
 working. Fixed in 1.3.2 by reading `completedClass` instead of `completeClass`.
+
+### F-14 · `upload_id` / `service` frozen at mount (upstream #45)
+
+The `Flow` object backing `Upload_ReactComponent` is built once, in
+`componentDidMount`, from whatever `upload_id` and `service` props were
+current at that moment. Upstream's `componentDidUpdate` only ever handled
+re-assigning the drag-and-drop zone — a later re-render with a *different*
+`upload_id` (a session-per-upload pattern, for instance) left the live
+uploader silently posting to the original one. Files landed under the old
+upload folder while `du.callback`'s `State(id, "upload_id")` reported the new
+value, so the callback and the actual file location disagreed — a silent
+data-routing bug rather than a visible error, and this is
+[upstream #45](https://github.com/fohrloop/dash-uploader/issues/45).
+
+`componentDidUpdate` now also refreshes `this.flow.opts.query` and
+`this.flow.opts.target` when `upload_id` or `service` change; flow.js
+re-reads both per request, so chunks already in flight keep the values they
+were queued with and only later requests pick up the change.
+
+**Not tracked in this audit until now, despite being the oldest fix on this
+page.** The fix shipped in `761b5e8` and has been in every published release
+since **1.2.1** — it predates this document's first audit pass (which also
+started from 1.2.1) but was never added to the findings table, because that
+first pass compared behavior claim-by-claim rather than reading
+`Upload_ReactComponent.react.js` against upstream's source function by
+function. That full read (done alongside F-12/F-13) is what surfaced it, out
+of numeric order with when it actually shipped. Practically low-risk either
+way: no working app can have been relying on a prop change being silently
+ignored.
 
 ---
 
@@ -330,10 +374,23 @@ the 1.21 and 4.x used here.
 
 **Revisited for 1.3.2** with a genuine function-by-function read of
 `Upload_ReactComponent.react.js` against upstream's source (not just its
-minified bundle), rather than a props/behavior-level comparison. That is what
-surfaced F-12 and F-13: the HTTP-handling layer already had this depth of
-scrutiny via `test_upstream_parity.py`'s differential testing; the JS
-component did not, and both findings lived specifically in code paths no test
-on either side exercised. The rest of the audit's claims above were
-independently re-verified at this pass and stand — including redoing the CSS
-rule comparison programmatically rather than trusting the earlier count.
+minified bundle), rather than a props/behavior-level comparison, plus a full
+re-derivation of every other file's divergences from a fresh `e1a1af4`
+checkout rather than trusting this document's prior claims. That is what
+surfaced F-12 and F-13 (both genuinely new: `isCompleted` broke between 1.3.0
+and 1.3.1, and `completedClass` only became reachable once F-12 was fixed),
+and separately what surfaced F-14 (not new — released since 1.2.1, but never
+recorded here) and the F-05/F-03/F-04 residual-divergence framing above
+(also not new, already true since those findings first resolved, but not
+previously called out as residual). The HTTP-handling layer already had this
+depth of scrutiny via `test_upstream_parity.py`'s differential testing; the
+JS component did not, which is why everything new surfaced there. The rest
+of the audit's claims above were independently re-verified at this pass and
+stand — including redoing the CSS rule comparison programmatically rather
+than trusting the earlier count.
+
+This pass also produced a plain list of every current divergence, each
+tagged with a rough compatibility-risk level (most are none-to-low; F-10/F-11
+and F-06 are the two worth an app actually planning around) — kept in the
+session record rather than duplicated here, since this document's job is the
+per-finding detail, not a risk-ranked summary.
