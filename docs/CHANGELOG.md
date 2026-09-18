@@ -12,8 +12,8 @@
   identical at `e1a1af4`), not something introduced here, and it stayed
   invisible because the state flag gating that line was `false` until the
   1.3.1 `isCompleted` fix made it reachable. `getClass()` now reads
-  `completedClass`. See
-  [docs/upstream-compatibility.md#f-13--completedclass-never-applied](upstream-compatibility.md#f-13--completedclass-never-applied).
+  `completedClass`. Tracked as F-13 in the maintainer's upstream-compatibility
+  audit (kept privately, not published in-repo).
 
 ### Performance
 - **One fewer syscall per chunk, two fewer on the first one.** The per-chunk
@@ -54,8 +54,8 @@
 
 A line-by-line audit against upstream `dash-uploader` at `e1a1af4` found eleven
 places the fork had stopped being a drop-in replacement. Nine are resolved here;
-the other two are kept deliberately and explained. Full write-up in
-[`docs/upstream-compatibility.md`](upstream-compatibility.md).
+the other two are kept deliberately and explained in the maintainer's
+upstream-compatibility audit (kept privately, not published in-repo).
 
 Nothing here is a new feature. If you are on `dash-uploader` and have been
 waiting to switch, this is the release to switch on.

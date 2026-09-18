@@ -28,8 +28,9 @@ Bug fix (F-13) and three performance improvements, no new features.
 `completeClass` instead of the actual `completedClass` prop, so the
 documented "upload complete" CSS class never applied — upstream's own typo,
 faithfully inherited, invisible until the 1.3.1 `isCompleted` fix made the
-gating branch reachable. Fixed by reading `completedClass`. Full detail in
-[docs/upstream-compatibility.md#f-13--completedclass-never-applied](docs/upstream-compatibility.md#f-13--completedclass-never-applied).
+gating branch reachable. Fixed by reading `completedClass`. Tracked as F-13
+in the maintainer's upstream-compatibility audit (kept privately, not
+published in-repo).
 
 **Also:** a performance review of the request-handling and component code
 found three small, verified-safe wins, all pinned by the existing test
@@ -134,8 +135,9 @@ they are one decision: un-scoping would deliberately reintroduce `up#91` /
 application. Every other finding restores behaviour an app might depend on; that
 one's "behaviour" is damage to unrelated code.
 
-Full write-up: [`docs/upstream-compatibility.md`](docs/upstream-compatibility.md),
-rendered at [`docs/drop-in-audit.html`](docs/drop-in-audit.html).
+Full write-up in the maintainer's upstream-compatibility audit, with a
+rendered HTML version alongside it — both were in-repo at `docs/` at the
+time of this release; both are since kept privately instead.
 
 **Nothing here weakens the CVE-2026-38360 fix.** The relaxed input validation
 was never the security boundary — `ensure_within` is, it was always
