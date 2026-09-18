@@ -15,6 +15,25 @@
   `completedClass`. See
   [docs/upstream-compatibility.md#f-13--completedclass-never-applied](upstream-compatibility.md#f-13--completedclass-never-applied).
 
+### Performance
+- **One fewer syscall per chunk, two fewer on the first one.** The per-chunk
+  lock file no longer gets an `os.utime()` call after creation — nothing
+  anywhere reads a lock file's mtime, only its existence, so this was a
+  syscall with no observable effect. The chunk folder's existence is now
+  checked via `mkdir(parents=True, exist_ok=True)` instead of a separate
+  `.exists()` call followed by `.mkdir()`, dropping a `stat()` that succeeded
+  (i.e. did nothing useful) on every chunk after the first. Neither changes
+  behavior; both are pinned by the existing `tests/test_performance.py`
+  syscall-counting suite, which still passes.
+- **`Upload_ReactComponent` no longer accumulates `uploadedFiles` forever.**
+  `state.uploadedFiles` was reset only on cancel, not at the start of each new
+  upload batch, so a page doing several sequential uploads without a reload
+  kept every previously-uploaded file's `FlowFile` object alive for the life
+  of the component, and `onComplete`'s cleanup loop re-scanned all of them
+  (not just the current batch) on every single completion. Now reset
+  alongside the other per-batch props in `onFilesSubmitted`. Inherited from
+  upstream, present there too.
+
 ## 1.3.1 (dash-uploader-ng)
 
 ### Fixed

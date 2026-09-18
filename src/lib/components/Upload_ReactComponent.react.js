@@ -408,7 +408,21 @@ export default class Upload_ReactComponent extends Component {
             // true from the previous run.
             isCompleted: false,
         })
-        this.setState({ showEnabledButtons: true, isComplete: false })
+        this.setState({
+            showEnabledButtons: true,
+            isComplete: false,
+            // Without this, uploadedFiles keeps every FlowFile ever
+            // successfully uploaded in this component's lifetime, not just
+            // the current batch: onComplete()'s cleanup forEach re-iterates
+            // all of them on every single completion (getting slower the
+            // longer the page has been open), and the array itself is a slow
+            // leak for any workflow that uploads more than once per page
+            // load without a reload in between. The files from the batch
+            // that just finished were already removed from this.flow by
+            // that same onComplete, so there is nothing here still worth
+            // keeping a reference to.
+            uploadedFiles: [],
+        })
         this.flow.upload()
         this.setState({ isUploading: true })
 
