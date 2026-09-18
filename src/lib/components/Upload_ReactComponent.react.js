@@ -533,7 +533,14 @@ export default class Upload_ReactComponent extends Component {
                 isUploading: this.props.uploadingClass,
                 isPaused: this.props.pausedClass,
                 isHovered: this.props.hoveredClass,
-                isComplete: this.props.completeClass,
+                // Upstream (and this fork, until now) read completeClass here,
+                // which was never declared -- propTypes/defaultProps only ever
+                // had completedClass. isComplete was false until the
+                // isCompleted fix (1.3.1), so this line never ran in practice;
+                // once it did, pushing undefined into classList was harmless
+                // (Array.join renders it as an empty string) but the
+                // documented completedClass prop still never took effect.
+                isComplete: this.props.completedClass,
             }
 
             Object.entries(classes).forEach(([stateProperty, className]) => {

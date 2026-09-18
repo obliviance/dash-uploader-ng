@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.2 (dash-uploader-ng)
+
+### Fixed
+- **`completedClass` actually applies now.** `Upload_ReactComponent`'s
+  `getClass()` read `this.props.completeClass` to decide whether to add the
+  "upload complete" CSS class, but the prop is declared and defaulted
+  everywhere else as `completedClass` — `completeClass` was never declared,
+  so the read was always `undefined` and the documented `completedClass` prop
+  never did anything. This is upstream's own typo (confirmed byte-for-byte
+  identical at `e1a1af4`), not something introduced here, and it stayed
+  invisible because the state flag gating that line was `false` until the
+  1.3.1 `isCompleted` fix made it reachable. `getClass()` now reads
+  `completedClass`. See
+  [docs/upstream-compatibility.md#f-13--completedclass-never-applied](upstream-compatibility.md#f-13--completedclass-never-applied).
+
 ## 1.3.1 (dash-uploader-ng)
 
 ### Fixed
