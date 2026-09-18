@@ -12,8 +12,7 @@ packaging, and refreshes the dependency tree while keeping the same API.
 
 > **Migrating from `dash-uploader`:** the import name changed, so update your
 > imports. Nothing else in your app needs to change — every difference from
-> upstream is audited and listed in
-> [docs/upstream-compatibility.md](docs/upstream-compatibility.md).
+> upstream has been audited, function by function.
 > ```diff
 > - import dash_uploader as du
 > + import dash_uploader_ng as du

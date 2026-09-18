@@ -60,7 +60,7 @@ _PATH_SEPARATORS = ("/", "\\")
 # The narrow allow-list this module used to enforce unconditionally. Kept
 # because it is the right rule for a deployment that also wants portability
 # guarantees, but it is opt-in: it rejected a lot of traffic upstream accepted
-# (see docs/upstream-compatibility.md).
+# (session e-mails, ISO timestamps, ids starting with an underscore).
 _STRICT_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 #: When True, ``safe_segment`` and ``safe_filename`` additionally require the

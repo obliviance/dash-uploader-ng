@@ -25,9 +25,9 @@ from dash.dependencies import Output, State
 import dash_uploader_ng as du
 from dash_uploader_ng import settings
 
-# `from dash import html` is dash 2.0+ syntax. This package supports dash>=1.1.0
-# (see docs/upstream-compatibility.md), and CI runs the suite against dash 1.x,
-# where the components live in their own distributions.
+# `from dash import html` is dash 2.0+ syntax. This package supports dash>=1.1.0,
+# matching upstream's own floor, and CI runs the suite against dash 1.x, where
+# the components live in their own distributions.
 if du.utils.dash_version_is_at_least("2.0.0"):
     from dash import html
 else:  # pragma: no cover - only on dash 1.x
